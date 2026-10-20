@@ -1,11 +1,11 @@
 {
   "name": "steam-ai-filter",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "scripts": {
     "build": "tsc && node scripts/build.mjs",
     "typecheck": "tsc --noEmit",
-    "test": "npm run build && node --test tests/core.test.cjs",
+    "test": "npm run build && node --test tests/*.test.cjs",
     "dev": "node scripts/serve.mjs",
     "check": "npm run typecheck && npm test"
   },

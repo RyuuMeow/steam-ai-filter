@@ -1,16 +1,18 @@
 {
   "manifest_version": 3,
   "name": "Steam AI Filter",
-  "version": "0.2.0",
-  "description": "依目前 Steam 頁面的 AI 揭露與人工智慧標籤，調整標示與過濾程度。",
+  "version": "0.3.0",
+  "description": "動態查詢 Steam 遊戲的 AI 揭露並保存在本機，依等級標示或遮蔽遊戲。",
   "permissions": ["storage"],
+  "host_permissions": ["https://store.steampowered.com/*"],
+  "background": {"service_worker": "background.js"},
   "action": {
     "default_title": "Steam AI Filter",
     "default_popup": "popup.html"
   },
   "content_scripts": [{
     "matches": ["https://store.steampowered.com/", "https://store.steampowered.com/?*", "https://store.steampowered.com/search/*", "https://store.steampowered.com/app/*"],
-    "js": ["core.js", "mask.js", "content.js"],
+    "js": ["lookup.js", "core.js", "mask.js", "content.js"],
     "css": ["content.css"],
     "run_at": "document_idle"
   }]

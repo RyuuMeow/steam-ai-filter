@@ -21,6 +21,13 @@
     runtime:{
       onMessage:{addListener:fn=>bridge.messages.push(fn)},
       sendMessage:async message=>{
+        if(message.type==='SAF_LOOKUP') return owner.testLookup ? owner.testLookup(message.id) :
+          {state:'unavailable',disclosure:null,checkedAt:Date.now(),expiresAt:Date.now()+300000,issue:'離線預覽'};
+        if(message.type==='SAF_CLEAR_CACHE') {
+          if(owner.testClearCache) await owner.testClearCache();
+          else await chrome.storage.local.set({disclosureCache:{version:1,items:{},cooldownUntil:0}});
+          return {ok:true};
+        }
         for(const listener of bridge.messages) listener(message,{tab:{id:1}},()=>{});
       }
     },

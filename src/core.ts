@@ -15,12 +15,15 @@ namespace SAF {
     hidden: number;
     matched: number;
     unknown: number;
+    pending?: number;
+    checked?: number;
+    failed?: number;
     revealing: boolean;
   }
   export const levels = [
     {name: "關閉", description: "保留 Steam 原本的顯示方式。"},
     {name: "標示", description: "標出 AI 揭露與人工智慧標籤，保留所有遊戲。"},
-    {name: "揭露", description: "遮蔽本頁提供明確 AI 使用揭露的遊戲。"},
+    {name: "揭露", description: "背景確認商品頁，遮蔽有 AI 使用揭露的遊戲。"},
     {name: "廣泛", description: "同時遮蔽帶有「人工智慧」標籤的遊戲。標籤也可能只是題材。"}
   ] as const;
   export function normalizeLevel(value: unknown): Level {

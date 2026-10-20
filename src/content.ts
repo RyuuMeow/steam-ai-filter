@@ -17,6 +17,52 @@
   let effective = new Map<Element, SAF.Evidence>();
   const watched = new WeakSet<Element>();
   const dirty = new Set<Element>();
+  const nearby = new Set<Element>();
+  let remote = new Map<string, SAFLookup.Result>();
+  const requesting = new Set<string>();
+  let retryTimer = 0;
+  const visibility = new IntersectionObserver(records => {
+    for (const record of records) {
+      if (record.isIntersecting) nearby.add(record.target); else nearby.delete(record.target);
+    }
+    if (ready) render();
+  }, {rootMargin: "400px"});
+  function readCache(value: unknown) {
+    const cache = value as SAFLookup.Stored | undefined;
+    remote = new Map(Object.entries(cache?.version === 1 ? cache.items || {} : {}).filter(
+      ([id, result]) => SAFLookup.validId(id) && SAFLookup.fresh(result, Date.now())));
+  }
+  function resultFor(id: string): SAFLookup.Result | undefined {
+    const result = remote.get(id);
+    return SAFLookup.fresh(result, Date.now()) ? result : undefined;
+  }
+  function requestNearby() {
+    window.clearTimeout(retryTimer);
+    if (!ready || !isListing || settings.level === 0 || document.hidden) return;
+    const visibleEntries = [...nearby].filter(e => e.isConnected && entries.has(e));
+    // Nearest cards are serviced first, independent of DOM/carousel order.
+    visibleEntries.sort((a, b) => Math.abs(a.getBoundingClientRect().top) - Math.abs(b.getBoundingClientRect().top));
+    for (const element of visibleEntries) {
+      const evidence = effective.get(element) || entries.get(element)!;
+      if (requesting.size >= 2) break;
+      if (evidence.disclosure || (settings.level === 3 && evidence.tagMatch) || Object.hasOwn(settings.allow, evidence.id) ||
+          resultFor(evidence.id) || requesting.has(evidence.id)) continue;
+      const id = evidence.id;
+      requesting.add(id);
+      void chrome.runtime.sendMessage({type: "SAF_LOOKUP", id}).then((result: unknown) => {
+        const reply = result as SAFLookup.Result | undefined;
+        if (reply?.state === "unavailable" && reply.expiresAt <= reply.checkedAt) remote.delete(id);
+        else remote.set(id, SAFLookup.fresh(result, Date.now()) ? result : SAFLookup.unavailable(Date.now(), "查詢未完成", 30000));
+      }).catch(() => {
+        remote.set(id, SAFLookup.unavailable(Date.now(), "查詢服務無法使用", 60000));
+      }).finally(() => { requesting.delete(id); render(); });
+    }
+    // Recheck expiration without rescanning the document. Hidden tabs issue no requests.
+    retryTimer = window.setTimeout(() => render(), 30000);
+  }
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) window.clearTimeout(retryTimer); else if (ready) render();
+  });
   const host = document.createElement("div");
   host.id = "saf-root";
   const shadow = host.attachShadow({mode: "open"});
@@ -120,12 +166,24 @@
     if (event.target instanceof HTMLMediaElement && event.target.closest(".saf-blocked")) event.target.pause();
   }, true);
   function render() {
-    let hidden = 0, matched = 0, unknown = 0;
+    let hidden = 0, matched = 0, unknown = 0, pending = 0, checked = 0, failed = 0;
     const candidates = new Map<string, SAF.Evidence>();
     effective = SAF.mergeEvidence(entries);
+    if (isListing) {
+      for (const [element, evidence] of effective) {
+        const result = resultFor(evidence.id);
+        if (result?.state === "disclosed" && !evidence.disclosure) effective.set(element, {...evidence, disclosure: result.disclosure});
+      }
+    }
+    requestNearby();
     for (const [element, evidence] of effective) {
       const match = Boolean(evidence.disclosure || evidence.tagMatch);
-      if (match) { matched++; candidates.set(evidence.id, evidence); } else unknown++;
+      const result = isListing ? resultFor(evidence.id) : undefined;
+      if (match) { matched++; candidates.set(evidence.id, evidence); }
+      else if (result?.state === "not-found") checked++;
+      else unknown++;
+      if (requesting.has(evidence.id)) pending++;
+      if (result?.state === "unavailable") failed++;
       const hide = isListing && !revealing && SAF.shouldHide(evidence, settings.level, settings.allow);
       if (hide) hidden++;
       if (isListing) {
@@ -158,7 +216,7 @@
         if (settings.level === 0 || !match) element.classList.remove("saf-badge-positioned");
       }
     }
-    status = {kind: isHome ? "home" : isSearch ? "search" : "app", total: entries.size, hidden, matched, unknown, revealing};
+    status = {kind: isHome ? "home" : isSearch ? "search" : "app", total: entries.size, hidden, matched, unknown, pending, checked, failed, revealing};
     bar.hidden = settings.level === 0;
     host.style.display = settings.level === 0 ? "none" : "";
     if (settings.level === 0 && dialog.open) dialog.close();
@@ -167,7 +225,7 @@
       : matched ? "這款遊戲有符合的訊號" : "本頁未取得 AI 使用訊號";
     const issues = Array.from(entries.values()).filter(e => e.parseIssue).length;
     note.textContent = isListing
-      ? `僅依本頁資料判斷；${unknown} 筆資訊不足。卡片可能沒有完整標籤或 AI 揭露。${issues ? ` ${issues} 筆標籤格式無法讀取。` : ""}`
+      ? `背景確認 ${pending} 筆；${checked} 筆未找到披露；${unknown} 筆尚未確認。${failed ? ` ${failed} 筆查詢暫不可用。` : ""}未找到披露不代表沒有使用 AI。${issues ? ` ${issues} 筆標籤格式無法讀取。` : ""}`
       : "詳情頁保留供你查看。未取得訊號不代表沒有使用 AI。";
     reveal.hidden = !isListing || (hidden === 0 && !revealing);
     reveal.textContent = revealing ? "恢復過濾" : "暫時顯示";
@@ -196,6 +254,7 @@
         if (!cards.has(element)) {
           SAF.syncMask(element, null); element.classList.remove("saf-badge-positioned");
           element.querySelector(".saf-badge")?.remove(); entries.delete(element);
+          visibility.unobserve(element); nearby.delete(element);
         }
       }
       for (const card of cards) {
@@ -207,6 +266,7 @@
         }
         const title = SAF.cardTitle(card, id);
         entries.set(card, SAF.readEvidence(card, id, title));
+        visibility.observe(card);
       }
     } else {
       entries.clear();
@@ -235,7 +295,8 @@
     if (area !== "local") return;
     if (changes.level) { settings.level = SAF.normalizeLevel(changes.level.newValue); revealing = false; }
     if (changes.allow) settings.allow = SAF.cleanAllow(changes.allow.newValue);
-    if (ready) render();
+    if (changes.disclosureCache) readCache(changes.disclosureCache.newValue);
+    if (ready && (changes.level || changes.allow || changes.disclosureCache)) render();
   });
   chrome.runtime.onMessage.addListener((message, _sender, respond) => {
     if (!message || !["SAF_STATUS", "SAF_REFRESH", "SAF_REVEAL"].includes(message.type)) return;
@@ -247,8 +308,8 @@
     if (message.type === "SAF_REVEAL") { revealing = !revealing; render(); }
     respond(status);
   });
-  void SAF.getSettings().then(data => {
-    settings = data; ready = true; scan();
+  void Promise.all([SAF.getSettings(), chrome.storage.local.get("disclosureCache")]).then(([data, cache]) => {
+    settings = data; readCache(cache.disclosureCache); ready = true; scan();
     observer.observe(document.body, {
       subtree: true, childList: true, characterData: true,
       attributes: true, attributeFilter: ["data-ds-tagids", "data-ds-appid", "href", "alt"]

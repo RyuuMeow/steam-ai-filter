@@ -64,7 +64,7 @@
       reveal.textContent = data.revealing ? "恢復過濾" : "暫時顯示";
       coverage.hidden = false;
       coverage.textContent = data.kind !== "app"
-        ? `僅依本頁資料判斷；${data.unknown} 筆資訊不足。`
+        ? `背景確認 ${data.pending || 0} 筆；${data.checked || 0} 筆未找到披露；${data.unknown} 筆尚未確認。`
         : "未取得訊號不代表沒有使用 AI。";
     } catch {
       status.textContent = "請開啟或重新整理 Steam 首頁／搜尋／遊戲頁。";
@@ -89,6 +89,17 @@
     if (tabId === undefined) return;
     try { await chrome.tabs.sendMessage(tabId, {type: "SAF_REVEAL"}); await refresh(); }
     catch { status.textContent = "頁面連線已中斷，請重新整理。"; }
+  };
+  document.querySelector<HTMLButtonElement>("#clear-cache")!.onclick = async event => {
+    const button = event.currentTarget as HTMLButtonElement;
+    button.disabled = true;
+    try {
+      const result = await chrome.runtime.sendMessage({type: "SAF_CLEAR_CACHE"});
+      if (!result?.ok) throw new Error("Cache clear failed");
+      button.textContent = "查詢快取已清除";
+      await refresh();
+    } catch { button.textContent = "清除失敗，請再試一次"; }
+    finally { button.disabled = false; }
   };
   chrome.runtime.onMessage.addListener((message, sender) => {
     if (message?.type === "SAF_UPDATED" && sender.tab?.id === tabId) void refresh();

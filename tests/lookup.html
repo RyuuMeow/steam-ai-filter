@@ -1,0 +1,24 @@
+<!doctype html><html lang="zh-Hant"><meta charset="utf-8">
+<title>Steam AI Filter · 動態查詢與快取驗證</title>
+<link rel="stylesheet" href="/dist/content.css">
+<style>
+body{background:#172a3b;color:#e5f1ff;font:15px/1.5 system-ui;margin:32px auto;max-width:1080px;padding:0 24px}
+h1{font-size:24px;margin-bottom:4px}.intro{color:#abc1d6}.home_page_content{display:flex;flex-wrap:wrap;gap:16px}
+#saf-root{width:100%}.sale_capsule{width:290px;min-height:142px;background:#38506b;color:white;display:flex;flex-direction:column;align-items:center;justify-content:center;text-decoration:none;position:relative}
+.title{font-size:18px;font-weight:600}.caption{font-size:12px;color:#bfd0df;margin-top:8px}.far{margin-top:1800px}
+pre{font:12px/1.7 monospace;white-space:pre-wrap;color:#9ce3b6}iframe{width:380px;height:400px;border:0;background:white;border-radius:16px;float:right;margin:20px}
+</style>
+<h1>動態查詢＋本機快取</h1><p class="intro">測試資料：卡片本身沒有 AI 標籤；背景取得披露後才遮蔽。</p>
+<main class="responsive_page_template_content"><div class="home_page_content">
+<a class="sale_capsule" href="https://store.steampowered.com/app/501/"><span class="title">背景查到披露</span><span class="caption">首頁未提供 AI 訊號</span></a>
+<a class="sale_capsule" href="https://store.steampowered.com/app/502/"><span class="title">未找到披露</span><span class="caption">商品頁已完整確認</span></a>
+<a class="sale_capsule" href="https://store.steampowered.com/app/503/"><span class="title">暫時無法確認</span><span class="caption">模擬年齡驗證頁，保留未知</span></a>
+<a class="sale_capsule" href="https://store.steampowered.com/app/501/"><span class="title">同款遊戲另一張卡片</span><span class="caption">共用查詢與快取</span></a>
+</div>
+<iframe src="/preview-popup.html" title="插件操作面板"></iframe>
+<pre id="test-results"></pre>
+<div class="home_page_content far"><a class="sale_capsule" href="https://store.steampowered.com/app/504/"><span class="title">畫面外的遊戲</span></a></div></main>
+<script src="/tests/bridge.js"></script><script src="/dist/lookup.js"></script>
+<script src="/tests/lookup-setup.js"></script>
+<script src="/dist/core.js"></script><script src="/dist/mask.js"></script><script src="/dist/content.js"></script>
+<script src="/tests/lookup-browser.js"></script></html>

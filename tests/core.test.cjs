@@ -39,7 +39,8 @@ test('manifest is restricted and every referenced asset exists', () => {
   const m=JSON.parse(fs.readFileSync('dist/manifest.json','utf8'));
   assert.equal(m.manifest_version,3);
   assert.deepEqual(m.permissions,['storage']);
-  assert.equal(m.host_permissions,undefined);
+  assert.deepEqual(m.host_permissions,['https://store.steampowered.com/*']);
+  assert.ok(fs.existsSync('dist/'+m.background.service_worker));
   assert.ok(m.content_scripts[0].matches.includes('https://store.steampowered.com/'));
   assert.ok(m.content_scripts[0].matches.includes('https://store.steampowered.com/?*'));
   assert.ok(m.content_scripts[0].js.includes('mask.js'));

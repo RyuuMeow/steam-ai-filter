@@ -1,0 +1,58 @@
+(async()=>{
+  const out=document.querySelector('#test-results');
+  const assert=(value,label)=>{if(!value)throw Error(label);out.textContent+=`PASS ${label}\n`;};
+  const wait=ms=>new Promise(r=>setTimeout(r,ms));
+  const until=async condition=>{for(let i=0;i<80;i++){if(await condition())return;await wait(50);}throw Error('Timed out');};
+  const cards=id=>[...document.querySelectorAll(`a[href$="/${id}/"]`)];
+  const state=()=>chrome.tabs.sendMessage(1,{type:'SAF_STATUS'});
+  try{
+    await wait(300);
+    assert(lookupCalls.length===0,'off makes no network requests');
+    await chrome.storage.local.set({level:2});
+    await until(()=>cards('501').every(c=>c.classList.contains('saf-blocked')));
+    assert(cards('501').every(c=>c.querySelector('.saf-mask-label').textContent==='AI 生成內容'),'detail-only disclosure masks every copy of the app');
+    assert(lookupCalls.filter(id=>id==='501').length===1,'duplicate cards share one request');
+    await until(async()=>(await state()).failed===1);
+    assert(!cards('502')[0].classList.contains('saf-blocked')&&(await state()).checked===1,'valid absence stays visible and is counted separately');
+    assert(!cards('503')[0].classList.contains('saf-blocked')&&(await state()).unknown>=1,'age gate stays unknown, never marked as no disclosure');
+    assert(!lookupCalls.includes('504'),'far-offscreen card is not fetched');
+    const copy=cards('501')[0].cloneNode(true);
+    // Copy only original markup, not extension masks or attributes.
+    copy.innerHTML='<span class="title">動態追加的同款遊戲</span>';
+    copy.className='sale_capsule';copy.removeAttribute('aria-label');copy.removeAttribute('role');
+    document.querySelector('.home_page_content').append(copy);
+    await until(()=>copy.classList.contains('saf-blocked'));
+    assert(lookupCalls.filter(id=>id==='501').length===1,'dynamically appended duplicate uses existing cache');
+    cards('501')[0].click();
+    const shadow=document.querySelector('#saf-root').shadowRoot;
+    assert(shadow.querySelector('#evidence').textContent.includes('Artwork was generated'),'reason dialog shows fetched disclosure as text');
+    shadow.querySelector('#allow').click();await wait(200);shadow.querySelector('#close').click();
+    assert(cards('501').every(c=>!c.classList.contains('saf-blocked')),'allowlist overrides remote disclosure');
+    await chrome.storage.local.set({allow:{},level:1});await wait(100);
+    assert(cards('501').every(c=>!c.classList.contains('saf-blocked')&&c.querySelector('.saf-badge')),'mark-only level uses fetched evidence without masking');
+    await chrome.storage.local.set({level:2});await wait(100);
+    const count=lookupCalls.length;
+    await chrome.tabs.sendMessage(1,{type:'SAF_REFRESH'});await wait(150);
+    assert(lookupCalls.length===count,'refreshing settings does not re-query fresh cache');
+    const data=(await chrome.storage.local.get('disclosureCache')).disclosureCache;
+    const restarted=new SAFLookup.Resolver({load:async()=>data,save:async()=>{},fetch:async()=>{throw Error('cache missed');}});
+    assert((await restarted.get('501')).state==='disclosed','new service instance restores persistent cache');
+    cards('504')[0].scrollIntoView();await until(()=>lookupCalls.includes('504'));
+    await until(()=>cards('504')[0].classList.contains('saf-blocked'));
+    assert(true,'scrolling toward an unknown card starts lookup and applies the result');
+    window.scrollTo(0,0);await wait(200);
+    await chrome.storage.local.set({level:0});
+    assert(document.querySelectorAll('.saf-blocked').length===0,'off restores cards after remote matches');
+    await chrome.storage.local.set({level:2});
+    await until(()=>cards('501').every(c=>c.classList.contains('saf-blocked')));
+    const beforeClear=lookupCalls.filter(id=>id==='501').length;
+    const popup=document.querySelector('iframe').contentDocument;
+    await until(()=>popup?.querySelector('#clear-cache'));
+    popup.querySelector('#clear-cache').click();
+    await until(()=>lookupCalls.filter(id=>id==='501').length>beforeClear);
+    await until(()=>cards('501').every(c=>c.classList.contains('saf-blocked')));
+    assert(true,'popup cache-clear action triggers a fresh visible-card lookup');
+    out.textContent+='ALL LOOKUP BROWSER TESTS PASSED';
+    document.documentElement.dataset.tests='passed';
+  }catch(e){out.textContent+=`FAIL ${e.stack}`;document.documentElement.dataset.tests='failed';console.error(e);}
+})();
