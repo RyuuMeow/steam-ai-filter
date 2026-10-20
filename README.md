@@ -1,28 +1,28 @@
 # Steam AI Filter — Steam AI 生成內容過濾器
 
-A Chrome extension that filters Steam store games using their AI content disclosures. Hide or mark matching games, with configurable code-only exceptions and local caching.
+A Chrome extension that filters Steam store games using their AI content disclosures. Hide or mark matching games, with selectable AI-use categories and local caching. Art is the only category enabled by default.
 
 在 Chrome 瀏覽 Steam 商店時，依商品頁的 AI 使用揭露過濾遊戲。可以遮蔽卡片、直接剔除，也可以只加上標示。
 
-目前版本 **v0.7.1**。從 **[Releases](https://github.com/RyuuMeow/steam-ai-filter/releases/latest)** 下載插件 RAR，解壓後即可載入，安裝不需要 Node.js。
+目前版本 **v0.8.0**。從 **[Releases](https://github.com/RyuuMeow/steam-ai-filter/releases/latest)** 下載插件 RAR，解壓後即可載入，安裝不需要 Node.js。
 
-[下載插件 RAR](https://github.com/RyuuMeow/steam-ai-filter/releases/download/v0.7.1/steam-ai-filter-v0.7.1.rar) · [MIT 授權](LICENSE)
+[下載插件 RAR](https://github.com/RyuuMeow/steam-ai-filter/releases/download/v0.8.0/steam-ai-filter-v0.8.0.rar) · [MIT 授權](LICENSE)
 
 - **四檔過濾**：關閉、標示、揭露、廣泛。
 - **兩種呈現**：遮蔽保留版面，剔除收起完整遊戲區塊。
-- **自行決定例外**：接受僅用於程式開發的 AI 揭露，或將特定遊戲設為永遠顯示。
+- **自選 AI 用途**：展開「過濾項目」，選擇美術、音樂／音效、配音、劇情／文字、翻譯或程式碼；預設只開美術。
 - **本機查詢與快取**：按需讀取 Steam 商品頁；可選擇顯示已檢查綠勾，以及自動加入 Steam 忽略清單。
 
 ## 安裝
 
 ### 1. 下載並解壓縮
 
-開啟 **[最新 Release](https://github.com/RyuuMeow/steam-ai-filter/releases/latest)**，在 **Assets** 下載 **`steam-ai-filter-v0.7.1.rar`**。
+開啟 **[最新 Release](https://github.com/RyuuMeow/steam-ai-filter/releases/latest)**，在 **Assets** 下載 **`steam-ai-filter-v0.8.0.rar`**。
 
-將 RAR **解壓縮至同名資料夾**（例如 WinRAR 的「解壓縮至 steam-ai-filter-v0.7.1\\」）。這個資料夾就是稍後要選取的插件，裡面直接有 `manifest.json`。
+將 RAR **解壓縮至同名資料夾**（例如 WinRAR 的「解壓縮至 steam-ai-filter-v0.8.0\\」）。這個資料夾就是稍後要選取的插件，裡面直接有 `manifest.json`。
 
 ```text
-steam-ai-filter-v0.7.1/  ← 在 Chrome 選這一層
+steam-ai-filter-v0.8.0/  ← 在 Chrome 選這一層
 ├── manifest.json
 ├── background.js
 ├── popup.html
@@ -54,7 +54,7 @@ steam-ai-filter-v0.7.1/  ← 在 Chrome 選這一層
 
 <img src="docs/images/03-open-filter-settings.png" alt="工具列的 Steam AI Filter 圖示與設定彈窗" width="320">
 
-上圖示範「揭露＋剔除」。首次安裝預設為 **揭露＋遮蔽**；接受 AI 程式碼與已檢查綠勾開啟，自動不感興趣關閉。
+上圖為先前版本的工具列操作位置。v0.8.0 首次安裝預設為 **揭露＋遮蔽**；過濾項目只開啟美術，已檢查綠勾開啟，自動不感興趣關閉。
 
 ## 使用方式
 
@@ -62,13 +62,13 @@ steam-ai-filter-v0.7.1/  ← 在 Chrome 選這一層
 |---|---|
 | 關閉 | 還原卡片，停止過濾 |
 | 標示 | 保留全部遊戲，只標出 AI 訊號 |
-| 揭露（預設） | 過濾商品頁有 AI 使用揭露的遊戲 |
-| 廣泛 | 另納入帶有「人工智慧」標籤的遊戲 |
+| 揭露（預設） | 過濾 AI 揭露中命中已勾選用途的遊戲 |
+| 廣泛 | 未取得正式揭露時，另納入帶有「人工智慧」標籤的遊戲 |
 
 **廣泛可能會遮蔽或剔除非 AI 生成內容。**「人工智慧」標籤也可能只代表遊戲題材。
 
 - **遮蔽／剔除**：在揭露或廣泛模式下選擇如何處理命中卡片。
-- **接受 AI 程式碼**：只放行揭露文字明確限定 AI 僅用於程式開發的遊戲。
+- **過濾項目**：預設收合，只開啟美術。勾選表示要過濾該用途；混合用途只要有一項命中就處理，全部關閉則不遮蔽／剔除。用途不明只標示。
 - **顯示已檢查標記**：綠勾代表已取得揭露或成功查詢商品頁，**不代表沒有使用 AI**。
 - **自動不感興趣**：預設關閉。開啟會修改目前 Steam 帳號的忽略清單，每 30 秒最多處理一款；關閉後不會撤回已完成的忽略。
 - **暫時顯示／永遠顯示**：暫時恢復本頁卡片，或將指定遊戲加入例外名單。「管理」可移除例外、查看查詢狀態及清除快取。
@@ -78,10 +78,10 @@ steam-ai-filter-v0.7.1/  ← 在 Chrome 選這一層
 ## 更新
 
 1. 將新版插件檔案覆蓋到原本載入的資料夾，保持 `manifest.json` 在同一層。
-2. 到 `chrome://extensions`，點 Steam AI Filter 的重新載入按鈕，確認版本為 **0.7.1**。
+2. 到 `chrome://extensions`，點 Steam AI Filter 的重新載入按鈕，確認版本為 **0.8.0**。
 3. **重新整理所有 Steam 商店分頁**，讓頁面改用新版程式。
 
-既有設定會保留。若出現 `Extension context invalidated`，請完成第 3 步。
+既有等級、呈現、例外及其他開關會保留。從舊版更新時，「接受 AI 程式碼」改為六項用途選擇，預設只開啟美術；之後會記住各項設定。若出現 `Extension context invalidated`，請完成第 3 步。
 
 ## 支援範圍與隱私
 
@@ -111,7 +111,7 @@ npm run dev
 
 推送 `v版本號` 標籤會自動執行檢查並建立 GitHub Release，附件只有插件本體的 RAR。詳見[自動發版](docs/development.md#自動發版)。
 
-[開發與驗證指引](docs/development.md) · [設計與模組分工](docs/design.md) · [v0.7.1 驗證紀錄](docs/validation.md)
+[開發與驗證指引](docs/development.md) · [設計與模組分工](docs/design.md) · [v0.8.0 驗證紀錄](docs/validation.md)
 
 ## 授權
 
