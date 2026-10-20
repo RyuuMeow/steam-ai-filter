@@ -1,0 +1,15 @@
+:root {
+  --surface: #fff;
+  --canvas: #f6fbfd;
+  --ink: #222435;
+  --muted: #5c6479;
+  --line: #d3dee4;
+  --blue-light: #80d7ff;
+  --blue: #1677ff;
+  --blue-deep: #0053ea;
+  --violet: #7855ee;
+  --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px;
+  --space-6: 24px; --space-8: 32px;
+  --radius: 16px;
+  --motion: 240ms;
+}

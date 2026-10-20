@@ -1,0 +1,17 @@
+{
+  "manifest_version": 3,
+  "name": "Steam AI Filter",
+  "version": "0.1.0",
+  "description": "依目前 Steam 頁面的 AI 揭露與人工智慧標籤，調整標示與過濾程度。",
+  "permissions": ["storage"],
+  "action": {
+    "default_title": "Steam AI Filter",
+    "default_popup": "popup.html"
+  },
+  "content_scripts": [{
+    "matches": ["https://store.steampowered.com/search/*", "https://store.steampowered.com/app/*"],
+    "js": ["core.js", "content.js"],
+    "css": ["content.css"],
+    "run_at": "document_idle"
+  }]
+}

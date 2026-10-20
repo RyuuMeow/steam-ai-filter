@@ -1,0 +1,21 @@
+.saf-hidden { display: none !important; }
+.saf-badge {
+  display: inline-block !important;
+  margin: 4px 0 0 !important; padding: 2px 6px !important;
+  border: 1px solid #80d7ff80 !important; border-radius: 4px !important;
+  background: #1b3349 !important; color: #d2efff !important;
+  font: 12px/1.5 "Segoe UI", "Microsoft JhengHei", sans-serif !important;
+  cursor: pointer !important; white-space: normal !important;
+}
+.saf-badge:focus-visible { outline: 2px solid #80d7ff !important; outline-offset: 2px !important; }
+.search_result_row:has(.saf-badge) { min-height: 72px; }
+.responsive_search_name_combined .search_name:has(.saf-badge) {
+  display: flex !important; align-items: center; gap: 8px;
+}
+.responsive_search_name_combined .search_name:has(.saf-badge) > .title {
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.responsive_search_name_combined .saf-badge {
+  flex-shrink: 0; max-width: 55%; margin: 0 !important;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap !important;
+}

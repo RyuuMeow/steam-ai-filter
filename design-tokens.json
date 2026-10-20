@@ -1,0 +1,24 @@
+{
+  "color": {
+    "surface": "#ffffff", "canvas": "#f6fbfd", "ink": "#222435", "muted": "#5c6479",
+    "line": "#d3dee4", "blueLight": "#80d7ff", "blue": "#1677ff", "blueDeep": "#0053ea", "violet": "#7855ee"
+  },
+  "spacing": [4, 8, 12, 16, 24, 32],
+  "fontSize": [12, 14, 16, 20],
+  "fontWeight": [400, 600],
+  "radius": 16,
+  "motionMs": 240,
+  "pairs": [
+    {"name":"primary","fg":"#222435","bg":"#ffffff"},
+    {"name":"secondary","fg":"#5c6479","bg":"#ffffff"},
+    {"name":"status","fg":"#5c6479","bg":"#f6fbfd"},
+    {"name":"action","fg":"#0053ea","bg":"#f6fbfd"},
+    {"name":"dialog action","fg":"#0053ea","bg":"#ffffff"},
+    {"name":"popup error","fg":"#9b2437","bg":"#f6fbfd"},
+    {"name":"page text","fg":"#d6e4f1","bg":"#1c2d3c"},
+    {"name":"page note","fg":"#afc4d7","bg":"#1c2d3c"},
+    {"name":"page action","fg":"#a6ddff","bg":"#1c2d3c"},
+    {"name":"page error","fg":"#ffbcbc","bg":"#1c2d3c"},
+    {"name":"badge","fg":"#d2efff","bg":"#1b3349"}
+  ]
+}

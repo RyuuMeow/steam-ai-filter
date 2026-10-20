@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="zh-Hant">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Steam AI Filter · 互動預覽</title>
+<link rel="stylesheet" href="/dist/content.css">
+<style>
+  *{box-sizing:border-box}body{margin:0;background:#f3f6f8;color:#222435;font:16px/1.5 "Segoe UI","Microsoft JhengHei",sans-serif}
+  main{max-width:1080px;margin:64px auto;padding:0 24px}header{margin-bottom:32px}h1{font-size:24px;font-weight:600;margin:0 0 8px}header p{color:#5c6479;margin:0}
+  .layout{display:grid;grid-template-columns:360px 1fr;gap:48px;align-items:start}
+  iframe{width:360px;height:360px;border:0;border-radius:20px;box-shadow:0 1px 3px #22243515}
+  .results{background:#182738;padding:24px;border-radius:16px;color:#d6e4f1}h2{font-size:16px;margin:0 0 16px;font-weight:600}
+  #search_resultsRows a{display:flex;align-items:center;min-height:76px;gap:16px;margin:8px 0;padding:12px;color:#d6e4f1;background:#23384b;text-decoration:none;border-radius:6px}
+  .cover{display:grid;place-items:center;width:64px;height:48px;flex-shrink:0;border-radius:4px;background:linear-gradient(135deg,#456d85,#30465b);font-size:24px}
+  .search_name{display:flex;flex-direction:column;align-items:flex-start}.title{font-size:14px}.meta{font-size:12px;color:#afc4d7}
+  .sample-info{font-size:12px;color:#afc4d7;margin:16px 0 0}.test-controls{margin:24px 0;display:flex;gap:12px}.test-controls button{padding:8px 12px;background:#fff;border:1px solid #d3dee4;border-radius:8px;cursor:pointer}
+  #test-results{white-space:pre-wrap;font:14px/1.7 Consolas,monospace}
+  @media(max-width:760px){main{margin:24px auto;padding:0 8px}.layout{grid-template-columns:1fr;gap:24px}iframe{max-width:100%}.results{padding:16px}}
+</style>
+<main>
+  <header><h1>Steam AI Filter</h1><p>互動預覽 · 拖動拉桿，觀察視覺與示範列表的變化。</p></header>
+  <div class="layout">
+    <iframe src="/preview-popup.html" title="插件彈窗預覽"></iframe>
+    <section class="results">
+      <h2>示範搜尋結果</h2>
+      <div class="tab_filter_control" data-value="7926" hidden>Artificial Intelligence</div>
+      <div id="search_resultsRows">
+        <a class="search_result_row" href="https://store.steampowered.com/app/101/" data-ds-appid="101" data-ds-tagids="[19,7926]">
+          <span class="cover">◈</span><div class="search_name"><span class="title">Neon Companion</span><span class="meta">頁面標籤：人工智慧</span></div>
+        </a>
+        <a class="search_result_row" href="https://store.steampowered.com/app/102/" data-ds-appid="102" data-ds-tagids="[21,19]">
+          <span class="cover">◇</span><div class="search_name"><span class="title">Quiet Valley</span><span class="meta">本頁未提供 AI 訊號</span></div>
+        </a>
+        <a class="search_result_row" href="https://store.steampowered.com/app/103/" data-ds-appid="103" data-ds-tagids="[7926]">
+          <span class="cover">◎</span><div class="search_name"><span class="title">Synthetic Skies</span><span class="meta">頁面標籤：人工智慧</span></div>
+        </a>
+        <a class="search_result_row" href="https://store.steampowered.com/app/104/" data-ds-appid="104">
+          <span class="cover">△</span><div class="search_name"><span class="title">Railway AI</span><span class="meta">只有名稱含 AI，不作為過濾依據</span></div>
+        </a>
+      </div>
+      <p class="sample-info">虛構遊戲，僅展示互動。標籤可能描述遊戲題材，並不等於使用生成式 AI。</p>
+    </section>
+  </div>
+  <div class="test-controls"><button id="append">模擬載入更多</button><button id="reset">重設示範</button></div>
+  <pre id="test-results" aria-live="polite"></pre>
+</main>
+<script src="/tests/bridge.js"></script>
+<script src="/dist/core.js"></script><script src="/dist/content.js"></script>
+<script src="/tests/fixture.js"></script>
+</html>
