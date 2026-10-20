@@ -56,18 +56,18 @@
     if (tabId === undefined) return;
     try {
       const data: SAF.Status = await chrome.tabs.sendMessage(tabId, {type: "SAF_STATUS"});
-      if (!data || !["app", "home", "search"].includes(data.kind)) throw new Error("Unsupported page");
-      status.textContent = data.kind === "app"
-        ? (data.matched ? "這款遊戲有符合的訊號" : "本頁未取得 AI 使用訊號")
+      if (!data || !["app", "home", "search", "store"].includes(data.kind)) throw new Error("Unsupported page");
+      status.textContent = data.total === 0 ? "本頁未找到可識別的遊戲卡片。" : data.kind === "app"
+        ? `${data.mainMatched ? "這款遊戲有符合的訊號" : "本頁未取得 AI 使用訊號"}${data.hidden ? `；其他遊戲已遮蔽 ${data.hidden} 筆` : ""}`
         : data.revealing ? `暫時顯示全部 ${data.total} 筆` : `本頁已遮蔽 ${data.hidden} / ${data.total} 筆`;
-      reveal.hidden = data.kind === "app" || (data.hidden === 0 && !data.revealing);
+      reveal.hidden = data.hidden === 0 && !data.revealing;
       reveal.textContent = data.revealing ? "恢復過濾" : "暫時顯示";
       coverage.hidden = false;
       coverage.textContent = data.kind !== "app"
         ? `背景確認 ${data.pending || 0} 筆；${data.checked || 0} 筆未找到披露；${data.unknown} 筆尚未確認。`
         : "未取得訊號不代表沒有使用 AI。";
     } catch {
-      status.textContent = "請開啟或重新整理 Steam 首頁／搜尋／遊戲頁。";
+      status.textContent = "請開啟或重新整理 Steam 商店頁面。";
       reveal.hidden = true; coverage.hidden = true;
     }
   }

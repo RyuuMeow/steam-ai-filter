@@ -1,5 +1,5 @@
 namespace SAF {
-  interface Original { label: string | null; role: string | null; children: Map<HTMLElement, {inert: boolean; aria: string | null}> }
+  interface Original { label: string | null; role: string | null; tab: string | null; children: Map<HTMLElement, {inert: boolean; aria: string | null}> }
   const originals = new WeakMap<Element, Original>();
   export function syncMask(card: Element, evidence: Evidence | null): void {
     const mask = card.querySelector<HTMLElement>(":scope > .saf-mask");
@@ -12,7 +12,7 @@ namespace SAF {
           child.inert = state.inert;
           if (state.aria === null) child.removeAttribute("aria-hidden"); else child.setAttribute("aria-hidden", state.aria);
         }
-        for (const [name, value] of [["aria-label", original.label], ["role", original.role]]) {
+        for (const [name, value] of [["aria-label", original.label], ["role", original.role], ["tabindex", original.tab]]) {
           if (value === null) card.removeAttribute(name!); else card.setAttribute(name!, value!);
         }
         originals.delete(card);
@@ -21,7 +21,7 @@ namespace SAF {
     }
     let original = originals.get(card);
     if (!original) {
-      original = {label: card.getAttribute("aria-label"), role: card.getAttribute("role"), children: new Map()};
+      original = {label: card.getAttribute("aria-label"), role: card.getAttribute("role"), tab: card.getAttribute("tabindex"), children: new Map()};
       originals.set(card, original);
       if (getComputedStyle(card).position === "static") card.classList.add("saf-positioned");
     }
@@ -29,6 +29,7 @@ namespace SAF {
     const title = evidence.disclosure ? "AI 生成內容" : "人工智慧標籤";
     card.setAttribute("aria-label", `${title}，已遮蔽 ${evidence.title}。點擊查看原因`);
     card.setAttribute("role", "button");
+    if (!card.matches("a[href]")) card.setAttribute("tabindex", "0");
     let cover = mask;
     if (!cover) {
       cover = document.createElement("span"); cover.className = "saf-mask"; cover.setAttribute("aria-hidden", "true");

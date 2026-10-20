@@ -17,7 +17,6 @@ for (const mode of ['home','search']) {
     : ['tests/bridge','dist/lookup','dist/core','dist/mask','dist/content','tests/fixture'];
   for(const name of files){
     let js=await read(`${name}.js`);
-    if(name==='dist/content')js=js.replace('const kind = SAF.pageKind(location.pathname);',`const kind = "${mode}";`);
     page=page.replace(`<script src="/${name}.js"></script>`,script(js));
   }
   await writeFile(`artifacts/${mode==='home'?'preview':'search-preview'}.html`,page);

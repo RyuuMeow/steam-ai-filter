@@ -1,0 +1,40 @@
+<!doctype html><html lang="zh-Hant"><meta charset="utf-8">
+<title>全 Steam 商店覆蓋測試</title><link rel="stylesheet" href="/dist/content.css">
+<style>
+body{background:#172b3c;color:#e7f0f8;font:15px/1.5 system-ui;max-width:1100px;margin:24px auto;padding:0 24px}
+h1{font-size:24px}h2{font-size:18px}.note{color:#aebfd0}a{color:inherit;text-decoration:none}
+.shelf{display:flex;gap:18px;align-items:stretch;margin-bottom:24px}
+.tile{display:block;width:250px;background:#36516c}.tile img{display:block;width:100%;height:136px;object-fit:cover}.tile span{display:block;padding:8px}
+.gallery{display:grid;grid-template-columns:1.4fr 1.2fr;gap:12px;height:250px;margin-bottom:24px;background:#102333}
+.hero img{display:block;width:100%;height:250px;object-fit:cover}
+.screenshots{display:grid;grid-template-columns:1fr 1fr;gap:10px}.screenshots img{width:100%;height:120px;object-fit:cover}
+.wishlist_row{width:250px;background:#36516c}.wishlist_row img{width:100%;height:136px;object-fit:cover}
+.background-card{display:block;width:250px;height:180px;background-size:cover}
+pre{font:12px/1.7 monospace;white-space:pre-wrap;color:#9de3b4}
+#fixture-navigation,#excluded{display:none}.product-main{display:none}
+</style>
+<nav id="fixture-navigation"><a href="https://store.steampowered.com/app/5151540/" data-ds-tagids="[7926]"><img alt="Navigation image"></a></nav>
+<h1>整個 Steam 商店 · 遊戲卡片過濾</h1>
+<p class="note">合成版型測試：活動輪播、整組推薦、願望清單與未知路徑。</p>
+<div class="product-main"><div><h1 id="appHubAppName">目前開啟的遊戲</h1></div><a class="tile" id="main-product" href="https://store.steampowered.com/app/620/"><img alt="Product"></a></div>
+<div id="custom-store-layout">
+  <section id="recommendation">
+    <h2>整組推薦</h2><p>因為你最近玩過 <a href="https://store.steampowered.com/app/620/">另一款遊戲</a></p>
+    <div class="gallery" id="gallery">
+      <a class="hero" href="https://store.steampowered.com/app/3850550/" data-ds-tagids="[7926]"><img alt="單一遊戲推薦封面" data-fixture-app="3850550"></a>
+      <div class="screenshots"><img alt="Screenshot 1" data-fixture-app="3850550"><img alt="Screenshot 2" data-fixture-app="3850550"><img alt="Screenshot 3" data-fixture-app="3850550"><img alt="Screenshot 4" data-fixture-app="3850550"></div>
+    </div>
+  </section>
+  <h2>活動輪播與新式卡片</h2>
+  <div class="shelf" id="event-shelf">
+    <article class="tile" data-ds-itemkey="App_5151540" id="react-card" tabindex="-1"><a href="https://store.steampowered.com/app/5151540/"><img alt="活動卡片" data-fixture-app="5151540"></a><span>只有詳情頁有披露</span></article>
+    <a class="tile" id="ordinary" href="https://store.steampowered.com/app/621/"><img alt="正常相鄰卡片" data-fixture-app="621"><span>正常相鄰卡片</span></a>
+    <div class="wishlist_row" data-app-id="5125140" data-ds-tagids="[7926]" id="wishlist"><img alt="Wishlist" data-fixture-app="5125140"><a href="https://store.steampowered.com/app/5125140/"><span>以 App ID 辨識的卡片</span></a></div>
+  </div>
+  <div class="shelf"><a id="background-card" class="background-card" href="https://store.steampowered.com/app/5140980/" data-ds-tagids="[7926]"></a></div>
+</div>
+<div id="excluded"><a href="https://store.steampowered.com/bundle/1/" data-ds-appid="5151540"><img alt="Bundle"></a><a href="https://external.invalid/app/5151540/" data-ds-appid="5151540"><img alt="External"></a></div>
+<pre id="test-results"></pre>
+<script src="/tests/bridge.js"></script><script src="/dist/lookup.js"></script><script src="/tests/storewide-setup.js"></script>
+<script src="/dist/core.js"></script><script src="/dist/mask.js"></script><script src="/dist/content.js"></script>
+<script src="/tests/storewide.js"></script></html>

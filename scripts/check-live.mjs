@@ -1,4 +1,5 @@
-// Optional live smoke check: explicit public app IDs, production resolver, no cookies.
+// Optional live smoke check: explicit public app IDs, production resolver.
+// Node has no browser cookie jar, so this checks anonymous public access only.
 import fs from 'node:fs/promises';
 import vm from 'node:vm';
 const scope=vm.createContext({setTimeout,clearTimeout,AbortController,URL});

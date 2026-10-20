@@ -1,10 +1,6 @@
 (() => {
-  const appMatch = location.pathname.match(/^\/app\/(\d+)(?:\/|$)/);
-  const kind = SAF.pageKind(location.pathname);
-  const isSearch = kind === "search";
-  const isHome = kind === "home";
-  const isListing = isSearch || isHome;
-  if (!appMatch && !isListing) return;
+  let appMatch = location.pathname.match(/^\/app\/(\d+)(?:\/|$)/);
+  let kind = SAF.pageKind(location.pathname);
   if (document.getElementById("saf-root")) return;
   let settings: SAF.Settings = {level: 1, allow: {}};
   let revealing = false;
@@ -12,7 +8,7 @@
   let timer = 0;
   let currentDialog: SAF.Evidence | null = null;
   let previousStatus = "";
-  let status: SAF.Status = {kind: isHome ? "home" : isSearch ? "search" : "app", total: 0, hidden: 0, matched: 0, unknown: 0, revealing};
+  let status: SAF.Status = {kind, total: 0, hidden: 0, matched: 0, unknown: 0, revealing};
   const entries = new Map<Element, SAF.Evidence>();
   let effective = new Map<Element, SAF.Evidence>();
   const watched = new WeakSet<Element>();
@@ -30,7 +26,7 @@
   function readCache(value: unknown) {
     const cache = value as SAFLookup.Stored | undefined;
     remote = new Map(Object.entries(cache?.version === 1 ? cache.items || {} : {}).filter(
-      ([id, result]) => SAFLookup.validId(id) && SAFLookup.fresh(result, Date.now())));
+      ([id, result]) => SAFLookup.validId(id) && SAFLookup.fresh(result, Date.now()) && (result.state !== "unavailable" || cache?.sessionAware)));
   }
   function resultFor(id: string): SAFLookup.Result | undefined {
     const result = remote.get(id);
@@ -38,7 +34,7 @@
   }
   function requestNearby() {
     window.clearTimeout(retryTimer);
-    if (!ready || !isListing || settings.level === 0 || document.hidden) return;
+    if (!ready || settings.level === 0 || document.hidden) return;
     const visibleEntries = [...nearby].filter(e => e.isConnected && entries.has(e));
     // Nearest cards are serviced first, independent of DOM/carousel order.
     visibleEntries.sort((a, b) => Math.abs(a.getBoundingClientRect().top) - Math.abs(b.getBoundingClientRect().top));
@@ -105,15 +101,17 @@
     error.hidden = false; error.textContent = "設定讀取或儲存失敗，請重新整理後再試。";
   }
   function placeHost(): boolean {
-    if (isListing) {
-      const target = document.querySelector(isHome ? ".home_page_content, .home_ctn" : "#search_resultsRows");
-      if (!target) return false;
-      if (!host.isConnected) { if (isHome) target.prepend(host); else target.before(host); }
-    } else {
+    if (appMatch) {
       const title = document.querySelector("#appHubAppName, .apphub_AppName");
-      if (!title) return false;
-      if (!host.isConnected) title.parentElement!.after(host);
+      if (title) {
+        if (!host.isConnected) title.parentElement!.after(host);
+        return true;
+      }
     }
+    if (!entries.size) return false;
+    const search = document.querySelector("#search_resultsRows");
+    const target = search || document.querySelector(".home_page_content, .responsive_page_template_content, main, [role=main]") || document.body;
+    if (!host.isConnected) { if (search) search.before(host); else target.prepend(host); }
     return true;
   }
   function openReason(e: SAF.Evidence) {
@@ -169,24 +167,26 @@
     let hidden = 0, matched = 0, unknown = 0, pending = 0, checked = 0, failed = 0;
     const candidates = new Map<string, SAF.Evidence>();
     effective = SAF.mergeEvidence(entries);
-    if (isListing) {
+    {
       for (const [element, evidence] of effective) {
+        if (element === document.documentElement) continue;
         const result = resultFor(evidence.id);
         if (result?.state === "disclosed" && !evidence.disclosure) effective.set(element, {...evidence, disclosure: result.disclosure});
       }
     }
     requestNearby();
     for (const [element, evidence] of effective) {
+      const isCard = element !== document.documentElement;
       const match = Boolean(evidence.disclosure || evidence.tagMatch);
-      const result = isListing ? resultFor(evidence.id) : undefined;
+      const result = isCard ? resultFor(evidence.id) : undefined;
       if (match) { matched++; candidates.set(evidence.id, evidence); }
       else if (result?.state === "not-found") checked++;
       else unknown++;
       if (requesting.has(evidence.id)) pending++;
       if (result?.state === "unavailable") failed++;
-      const hide = isListing && !revealing && SAF.shouldHide(evidence, settings.level, settings.allow);
+      const hide = isCard && !revealing && SAF.shouldHide(evidence, settings.level, settings.allow);
       if (hide) hidden++;
-      if (isListing) {
+      if (isCard) {
         watchCard(element);
         SAF.syncMask(element, hide ? evidence : null);
         const existing = element.querySelector<HTMLElement>(".saf-badge");
@@ -204,7 +204,7 @@
             };
             badge.onclick = show;
             badge.onkeydown = event => { if (event.key === "Enter" || event.key === " ") show(event); };
-            if (isHome) {
+            if (!element.matches(".search_result_row")) {
               badge.classList.add("saf-home-badge");
               if (getComputedStyle(element).position === "static") element.classList.add("saf-badge-positioned");
             }
@@ -216,18 +216,20 @@
         if (settings.level === 0 || !match) element.classList.remove("saf-badge-positioned");
       }
     }
-    status = {kind: isHome ? "home" : isSearch ? "search" : "app", total: entries.size, hidden, matched, unknown, pending, checked, failed, revealing};
-    bar.hidden = settings.level === 0;
-    host.style.display = settings.level === 0 ? "none" : "";
+    const main = entries.get(document.documentElement);
+    const mainMatched = Boolean(main?.disclosure || main?.tagMatch);
+    status = {kind, total: entries.size, hidden, matched, unknown, pending, checked, failed, mainMatched, revealing};
+    bar.hidden = settings.level === 0 || !entries.size;
+    host.style.display = bar.hidden ? "none" : "";
     if (settings.level === 0 && dialog.open) dialog.close();
-    stat.textContent = isListing
-      ? revealing ? `暫時顯示全部 ${entries.size} 筆` : `已遮蔽 ${hidden} / ${entries.size} 筆`
-      : matched ? "這款遊戲有符合的訊號" : "本頁未取得 AI 使用訊號";
+    stat.textContent = main
+      ? `${mainMatched ? "這款遊戲有符合的訊號" : "本頁未取得 AI 使用訊號"}${entries.size > 1 ? `；其他遊戲已遮蔽 ${hidden} 筆` : ""}`
+      : revealing ? `暫時顯示全部 ${entries.size} 筆` : `已遮蔽 ${hidden} / ${entries.size} 筆`;
     const issues = Array.from(entries.values()).filter(e => e.parseIssue).length;
-    note.textContent = isListing
+    note.textContent = !main || entries.size > 1
       ? `背景確認 ${pending} 筆；${checked} 筆未找到披露；${unknown} 筆尚未確認。${failed ? ` ${failed} 筆查詢暫不可用。` : ""}未找到披露不代表沒有使用 AI。${issues ? ` ${issues} 筆標籤格式無法讀取。` : ""}`
       : "詳情頁保留供你查看。未取得訊號不代表沒有使用 AI。";
-    reveal.hidden = !isListing || (hidden === 0 && !revealing);
+    reveal.hidden = hidden === 0 && !revealing;
     reveal.textContent = revealing ? "恢復過濾" : "暫時顯示";
     shadow.querySelector<HTMLElement>("#matches")!.hidden = candidates.size === 0;
     // Shadow-root updates do not feed the page observer.
@@ -247,10 +249,13 @@
   }
   function scan() {
     timer = 0;
-    if (!ready || !placeHost()) return;
-    if (isListing) {
-      const cards = new Set(SAF.collectCards(document, isHome ? "home" : "search"));
+    if (!ready) return;
+    appMatch = location.pathname.match(/^\/app\/(\d+)(?:\/|$)/);
+    kind = SAF.pageKind(location.pathname);
+    {
+      const cards = new Set(SAF.collectCards(document).filter(card => SAF.cardId(card) !== appMatch?.[1]));
       for (const element of entries.keys()) {
+        if (element === document.documentElement) continue;
         if (!cards.has(element)) {
           SAF.syncMask(element, null); element.classList.remove("saf-badge-positioned");
           element.querySelector(".saf-badge")?.remove(); entries.delete(element);
@@ -268,14 +273,16 @@
         entries.set(card, SAF.readEvidence(card, id, title));
         visibility.observe(card);
       }
-    } else {
-      entries.clear();
+    }
+    entries.delete(document.documentElement);
+    if (appMatch && document.querySelector("#appHubAppName, .apphub_AppName")) {
       entries.set(document.documentElement, SAF.readEvidence(document, appMatch![1],
         document.querySelector("#appHubAppName, .apphub_AppName")?.textContent?.trim() || `App ${appMatch![1]}`));
     }
-    dirty.clear(); render();
+    dirty.clear(); placeHost(); render();
   }
   function schedule() { if (!timer) timer = window.setTimeout(scan, 100); }
+  window.addEventListener("popstate", schedule);
   const observer = new MutationObserver(records => {
     let relevant = false;
     for (const record of records) {
@@ -286,8 +293,9 @@
         if (nodes.length && nodes.every(n => n instanceof Element && (n.id === "saf-root" || n.matches(".saf-badge, .saf-mask")))) continue;
       }
       relevant = true;
-      const card = el.closest("a[href]");
-      if (card) dirty.add(card);
+      for (let card: Element | null = el; card; card = card.parentElement) {
+        if (entries.has(card)) { dirty.add(card); break; }
+      }
     }
     if (relevant) schedule();
   });
@@ -300,7 +308,7 @@
   });
   chrome.runtime.onMessage.addListener((message, _sender, respond) => {
     if (!message || !["SAF_STATUS", "SAF_REFRESH", "SAF_REVEAL"].includes(message.type)) return;
-    if (!ready || !host.isConnected) { respond(null); return; }
+    if (!ready) { respond(null); return; }
     if (message.type === "SAF_REFRESH") {
       SAF.getSettings().then(data => { settings = data; render(); respond(status); }).catch(e => { report(e); respond(null); });
       return true;
@@ -312,7 +320,7 @@
     settings = data; readCache(cache.disclosureCache); ready = true; scan();
     observer.observe(document.body, {
       subtree: true, childList: true, characterData: true,
-      attributes: true, attributeFilter: ["data-ds-tagids", "data-ds-appid", "href", "alt"]
+      attributes: true, attributeFilter: ["data-ds-tagids", "data-ds-appid", "data-appid", "data-app-id", "data-ds-itemkey", "href", "alt", "src", "data-image-url"]
     });
   }).catch(e => { placeHost(); report(e); });
 })();

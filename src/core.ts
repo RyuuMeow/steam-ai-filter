@@ -9,8 +9,9 @@ namespace SAF {
     parseIssue: boolean;
   }
   export interface Settings { level: Level; allow: Record<string, string> }
+  export type PageKind = "home" | "search" | "app" | "store";
   export interface Status {
-    kind: "search" | "home" | "app";
+    kind: PageKind;
     total: number;
     hidden: number;
     matched: number;
@@ -18,6 +19,7 @@ namespace SAF {
     pending?: number;
     checked?: number;
     failed?: number;
+    mainMatched?: boolean;
     revealing: boolean;
   }
   export const levels = [
@@ -85,40 +87,98 @@ namespace SAF {
   export function readEvidence(scope: Element | Document, id: string, title: string): Evidence {
     const raw = scope instanceof Element ? scope.getAttribute("data-ds-tagids") : null;
     const parsed = parseTagIds(raw);
+    const nested = Array.from(scope.querySelectorAll("[data-ds-tagids]"))
+      .filter(e => directCardId(e) === id).map(e => parseTagIds(e.getAttribute("data-ds-tagids")));
     // Scope to product tags only. Never inspect search-sidebar tag controls.
     const tagScope = scope instanceof Document ? scope.querySelector(`.glance_tags[data-appid="${id}"]`) : scope;
     const tags = Array.from(tagScope?.querySelectorAll(".app_tag, .tab_item_tags .top_tag, .tab_item_top_tags .top_tag") || []);
     return {
-      id, title, tagMatch: parsed.ids.includes("7926") || tags.some(e => isAITag((e.textContent || "").replace(/^[,\s，]+/, ""))),
-      tagAvailable: raw !== null || tags.length > 0,
+      id, title, tagMatch: parsed.ids.includes("7926") || nested.some(p => p.ids.includes("7926")) || tags.some(e => isAITag((e.textContent || "").replace(/^[,\s，]+/, ""))),
+      tagAvailable: raw !== null || nested.length > 0 || tags.length > 0,
       disclosure: readDisclosure(scope),
-      parseIssue: parsed.issue
+      parseIssue: parsed.issue || nested.some(p => p.issue)
     };
   }
-  export function pageKind(path: string): "home" | "search" | "app" | null {
+  // Labels only: no store path is excluded from card discovery.
+  export function pageKind(path: string): PageKind {
     if (path === "/") return "home";
     if (/^\/search\/?$/.test(path)) return "search";
     if (/^\/app\/\d+(?:\/|$)/.test(path)) return "app";
-    return null;
+    return "store";
   }
-  export function cardId(card: Element): string | null {
-    const href = card.getAttribute("href");
+  function hrefId(href: string | null): string | null {
     if (!href) return null;
     try {
       const url = new URL(href, location.href);
       if (url.hostname !== "store.steampowered.com" && url.origin !== location.origin) return null;
-      return url.pathname.match(/^\/app\/(\d+)(?:\/|$)/)?.[1] || null;
+      return url.pathname.match(/^\/app\/([1-9]\d{0,9})(?:\/|$)/)?.[1] || null;
     } catch { return null; }
   }
-  export function collectCards(root: Document, kind: "home" | "search"): Element[] {
-    const scope = kind === "home" ? root.querySelector(".responsive_page_template_content, .home_ctn, .home_page_content") : root.querySelector("#search_resultsRows");
-    if (!scope) return [];
-    return Array.from(scope.querySelectorAll(kind === "search" ? "a.search_result_row" : "a[href]"))
-      .filter(e => cardId(e) !== null && (kind === "search" ||
-        e.matches(".store_main_capsule, .sale_capsule, .tab_row_item, .tab_item, .home_smallcap, .small_cap") || Boolean(e.querySelector("img"))));
+  const ownerSelector = "a[href], [data-ds-appid], [data-appid], [data-app-id], [data-ds-itemkey]";
+  const boundary = "body, html, main, [role=main], [role=list], .responsive_page_template_content, .home_page_content, .home_ctn, #search_resultsRows";
+  const excluded = "#saf-root, .saf-badge, .saf-mask, #global_header, #global_action_menu, #store_header, #footer, nav, [role=navigation], [data-featuretarget=footer]";
+  function directCardId(element: Element): string | null {
+    // An explicit non-app URL (bundle, package or external) wins over incidental data.
+    if (element.matches("a[href]")) return hrefId(element.getAttribute("href"));
+    for (const name of ["data-ds-appid", "data-appid", "data-app-id"]) {
+      const id = element.getAttribute(name);
+      if (id && /^[1-9]\d{0,9}$/.test(id)) return id;
+    }
+    return element.getAttribute("data-ds-itemkey")?.match(/^App_([1-9]\d{0,9})$/i)?.[1] || null;
+  }
+  function ownerIds(element: Element): Set<string> {
+    const ids = new Set<string>();
+    const own = directCardId(element);
+    if (own) ids.add(own);
+    for (const child of element.querySelectorAll(ownerSelector)) {
+      const id = directCardId(child);
+      if (id) ids.add(id);
+      if (ids.size > 1) break;
+    }
+    return ids;
+  }
+  export function cardId(card: Element): string | null {
+    const ids = ownerIds(card);
+    return ids.size === 1 ? [...ids][0] : null;
+  }
+  export function collectCards(root: Document, _kind?: PageKind): Element[] {
+    const metadata = new Map<Element, {ids: Set<string>; media: number}>();
+    const info = (el: Element) => {
+      if (!metadata.has(el)) metadata.set(el, {ids: ownerIds(el), media: el.querySelectorAll("img, video, [style*='background-image']").length});
+      return metadata.get(el)!;
+    };
+    const candidates = new Set<Element>();
+    for (const element of root.querySelectorAll(ownerSelector)) {
+      if (element.matches(boundary) || element.closest(excluded)) continue;
+      const id = directCardId(element);
+      if (!id || info(element).ids.size !== 1) continue;
+      const media = info(element).media || (element instanceof HTMLElement && Boolean(element.style.backgroundImage) ? 1 : 0);
+      const known = element.matches(".search_result_row, .store_main_capsule, .sale_capsule, .tab_row_item, .tab_item, .home_smallcap, .small_cap, .wishlist_row");
+      if (!media && !known) continue;
+      let card = element, mediaCount = media;
+      // Expand to the single-game artwork group. Stop at mixed-game shelves, page
+      // roots or navigation so a recommendation can never cover its neighbours.
+      for (let parent = element.parentElement, depth = 0; parent && depth < 6; parent = parent.parentElement, depth++) {
+        if (parent.matches(boundary) || parent.closest(excluded)) break;
+        const details = info(parent);
+        if (details.ids.size !== 1 || !details.ids.has(id)) break;
+        if (parent.querySelector("a[href*='/bundle/'], a[href*='/sub/'], nav, [role=navigation]")) break;
+        const extraMedia = [...parent.querySelectorAll("img, video, [style*='background-image']")].filter(m => !card.contains(m));
+        const sameGameAssets = extraMedia.length > 0 && extraMedia.every(m => {
+          const source = m.getAttribute("data-image-url") || m.getAttribute("src") || m.getAttribute("poster") || m.getAttribute("style") || "";
+          return source.match(/\/steam\/apps\/([1-9]\d{0,9})\//)?.[1] === id;
+        });
+        if ((details.media > mediaCount && sameGameAssets) || directCardId(parent) === id) { card = parent; mediaCount = details.media; }
+      }
+      candidates.add(card);
+    }
+    return [...candidates].filter(card => {
+      for (let parent = card.parentElement; parent; parent = parent.parentElement) if (candidates.has(parent)) return false;
+      return true;
+    });
   }
   export function cardTitle(card: Element, id: string): string {
-    return card.querySelector(".title, .app_name, .tab_item_title, .tab_item_name")?.textContent?.trim()
+    return card.querySelector(".title, .app_name, .tab_item_title, .tab_item_name, .recommendation_title")?.textContent?.trim()
       || card.querySelector("img[alt]")?.getAttribute("alt")?.trim() || `App ${id}`;
   }
   export function mergeEvidence(entries: Iterable<[Element, Evidence]>): Map<Element, Evidence> {

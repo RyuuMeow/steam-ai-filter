@@ -67,6 +67,14 @@ test('network failures remain unknown and are cached briefly, never false negati
   assert.equal((await resolver.get('42')).state,'unavailable');
   assert.equal((await resolver.get('42')).state,'unavailable');assert.equal(count,1);
 });
+test('upgrade retries failures from the old anonymous-fetch cache', async()=>{
+  const now=Date.now();let count=0;
+  const {resolver}=setup(async()=>{count++;return response(html('42','Session accessible'));},{
+    load:async()=>({version:1,cooldownUntil:0,items:{42:S.unavailable(now,'Old anonymous failure')}})
+  });
+  assert.equal((await resolver.get('42')).state,'disclosed');
+  assert.equal(count,1);
+});
 test('429 Retry-After stops the queue, persists cooldown, and cache clear cannot bypass it', async () => {
   let count=0;
   const first=setup(async()=>{count++;return new Response('',{status:429,headers:{'Retry-After':'120'}});});
@@ -125,10 +133,10 @@ test('clear during a pending storage write cannot return or restore an obsolete 
   assert.deepEqual(Object.keys(saved.items),[]);
   assert.equal((await resolver.get('42')).state,'disclosed');
 });
-test('fetch stays on the fixed Steam app URL, without cookies or redirects', async()=>{
+test('fetch uses the existing Steam session on a fixed app URL, without following redirects', async()=>{
   const {resolver}=setup(async(url,init)=>{
     assert.equal(url,'https://store.steampowered.com/app/42/?l=english');
-    assert.equal(init.credentials,'omit');assert.equal(init.redirect,'error');
+    assert.equal(init.credentials,'include');assert.equal(init.redirect,'error');
     assert.ok(init.signal);
     return response(html('42'));
   });
@@ -153,6 +161,10 @@ test('background entrypoint validates senders and supports only fixed app IDs', 
   const sender={id:'extension',url:'https://store.steampowered.com/'};
   const get=msg=>new Promise(resolve=>listener(msg,sender,resolve));
   assert.equal((await get({type:'SAF_LOOKUP',id:'42'})).state,'disclosed');
+  for(const path of ['/sale/nextfest','/curator/123/','/wishlist/id/test/','/category/rpg','/charts/topselling/','/future/new-layout/']) {
+    const result=await new Promise(resolve=>listener({type:'SAF_LOOKUP',id:'42'},{...sender,url:'https://store.steampowered.com'+path},resolve));
+    assert.equal(result.state,'disclosed');
+  }
   assert.equal(requests,1);
   storage.level=0;change({level:{newValue:0}},'local');
   assert.equal((await get({type:'SAF_LOOKUP',id:'43'})).state,'unavailable');assert.equal(requests,1);

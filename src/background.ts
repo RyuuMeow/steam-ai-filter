@@ -18,7 +18,7 @@ importScripts("lookup.js");
     if (message?.type !== "SAF_LOOKUP" || !SAFLookup.validId(message.id)) return;
     let url: URL;
     try { url = new URL(sender.url || ""); } catch { return; }
-    if (url.origin !== "https://store.steampowered.com" || !/^\/(?:$|search\/?$|app\/\d+(?:\/|$))/.test(url.pathname)) return;
+    if (url.origin !== "https://store.steampowered.com") return;
     void chrome.storage.local.get(["level", "allow"]).then(async settings => {
       const enabled = settings.level !== 0;
       resolver.setEnabled(enabled);

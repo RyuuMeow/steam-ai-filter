@@ -7,6 +7,7 @@ http.createServer(async(req,res)=>{
   try{
     const url=new URL(req.url,'http://localhost');
     let name=url.pathname;
+    if(url.searchParams.has('coverage')) name='/tests/storewide.html';
     if(name==='/') name=url.searchParams.has('lookup')?'/tests/lookup.html':'/tests/home.html';
     if(name==='/search/') name='/tests/fixture.html';
     if(name.startsWith('/app/')) name='/tests/detail.html';

@@ -1,7 +1,7 @@
 namespace SAFLookup {
   export type State = "disclosed" | "not-found" | "unavailable";
   export interface Result { state: State; disclosure: string | null; checkedAt: number; expiresAt: number; issue?: string }
-  export interface Stored { version: 1; items: Record<string, Result>; cooldownUntil: number }
+  export interface Stored { version: 1; items: Record<string, Result>; cooldownUntil: number; sessionAware?: boolean }
   export const validId = (id: unknown): id is string => typeof id === "string" && /^[1-9]\d{0,9}$/.test(id);
   const DAY = 86400000;
   export function unavailable(now: number, issue: string, retry = 300000): Result {
@@ -77,7 +77,7 @@ namespace SAFLookup {
         if (data?.version !== 1) return;
         this.cooldownUntil = Number.isFinite(data.cooldownUntil) ? Math.min(data.cooldownUntil, this.now() + 3600000) : 0;
         for (const [id, result] of Object.entries(data.items || {}).slice(-500)) {
-          if (validId(id) && fresh(result, this.now())) this.items[id] = result;
+          if (validId(id) && fresh(result, this.now()) && (result.state !== "unavailable" || data.sessionAware)) this.items[id] = result;
         }
       });
     }
@@ -116,7 +116,7 @@ namespace SAFLookup {
       const now = this.now();
       const sorted = Object.entries(this.items).filter(([, r]) => fresh(r, now)).sort((a, b) => b[1].checkedAt - a[1].checkedAt).slice(0, 500);
       this.items = Object.fromEntries(sorted);
-      const snapshot: Stored = {version: 1, items: {...this.items}, cooldownUntil: this.cooldownUntil};
+      const snapshot: Stored = {version: 1, items: {...this.items}, cooldownUntil: this.cooldownUntil, sessionAware: true};
       const write = this.writes.catch(() => undefined).then(() => this.options.save(snapshot));
       this.writes = write;
       return write;
@@ -146,7 +146,7 @@ namespace SAFLookup {
       let result: Result;
       try {
         const response = await this.options.fetch(`https://store.steampowered.com/app/${job.id}/?l=english`, {
-          credentials: "omit", redirect: "error", signal: controller.signal
+          credentials: "include", redirect: "error", signal: controller.signal
         });
         if (response.status === 429 || response.status === 503) {
           const raw = response.headers.get("Retry-After");
@@ -159,7 +159,7 @@ namespace SAFLookup {
           result = parse(await response.text(), job.id, this.now());
         }
       } catch {
-        result = unavailable(this.now(), "連線逾時或商品頁無法存取");
+        result = unavailable(this.now(), "頁面需要驗證、連線逾時或暫時無法存取");
       } finally { clearTimeout(timeout); }
       if (job.generation === this.generation && this.enabled) {
         this.items[job.id] = result;

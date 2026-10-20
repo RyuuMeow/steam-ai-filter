@@ -41,16 +41,15 @@ test('manifest is restricted and every referenced asset exists', () => {
   assert.deepEqual(m.permissions,['storage']);
   assert.deepEqual(m.host_permissions,['https://store.steampowered.com/*']);
   assert.ok(fs.existsSync('dist/'+m.background.service_worker));
-  assert.ok(m.content_scripts[0].matches.includes('https://store.steampowered.com/'));
-  assert.ok(m.content_scripts[0].matches.includes('https://store.steampowered.com/?*'));
+  assert.deepEqual(m.content_scripts[0].matches,['https://store.steampowered.com/*']);
   assert.ok(m.content_scripts[0].js.includes('mask.js'));
   for(const f of [...m.content_scripts[0].js,...m.content_scripts[0].css,m.action.default_popup]) assert.ok(fs.existsSync('dist/'+f));
 });
-test('homepage, search and details are supported, unrelated pages are not',()=>{
+test('page labels never exclude any store route',()=>{
   assert.equal(S.pageKind('/'),'home');
   assert.equal(S.pageKind('/search/'),'search');
   assert.equal(S.pageKind('/app/100/'),'app');
-  assert.equal(S.pageKind('/account/'),null);
+  for(const path of ['/account/','/sale/nextfest','/category/rpg','/charts/topselling/','/wishlist/id/test/','/curator/123/','/future/new-layout/']) assert.equal(S.pageKind(path),'store');
 });
 test('same-page app evidence merges and clears without retaining old positives',()=>{
   const first={},second={};
