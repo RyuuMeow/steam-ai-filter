@@ -40,5 +40,21 @@ test('manifest is restricted and every referenced asset exists', () => {
   assert.equal(m.manifest_version,3);
   assert.deepEqual(m.permissions,['storage']);
   assert.equal(m.host_permissions,undefined);
+  assert.ok(m.content_scripts[0].matches.includes('https://store.steampowered.com/'));
+  assert.ok(m.content_scripts[0].matches.includes('https://store.steampowered.com/?*'));
+  assert.ok(m.content_scripts[0].js.includes('mask.js'));
   for(const f of [...m.content_scripts[0].js,...m.content_scripts[0].css,m.action.default_popup]) assert.ok(fs.existsSync('dist/'+f));
+});
+test('homepage, search and details are supported, unrelated pages are not',()=>{
+  assert.equal(S.pageKind('/'),'home');
+  assert.equal(S.pageKind('/search/'),'search');
+  assert.equal(S.pageKind('/app/100/'),'app');
+  assert.equal(S.pageKind('/account/'),null);
+});
+test('same-page app evidence merges and clears without retaining old positives',()=>{
+  const first={},second={};
+  const sources=new Map([[first,evidence({tagMatch:true})],[second,evidence()]]);
+  assert.equal(S.mergeEvidence(sources).get(second).tagMatch,true);
+  sources.delete(first);
+  assert.equal(S.mergeEvidence(sources).get(second).tagMatch,false);
 });

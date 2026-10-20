@@ -1,0 +1,72 @@
+const container=document.querySelector('.home_page_content');
+document.querySelector('#reset').onclick=()=>location.reload();
+let newId=400;
+document.querySelector('#append').onclick=()=>{
+  const card=document.createElement('a');
+  card.href=`https://store.steampowered.com/app/${newId}/`;card.dataset.dsTagids='[7926]';
+  card.className='tab_row_item';card.innerHTML=`<div class="tab_item_header">✦</div><div class="tab_item_title">New Arrival ${newId++}</div>`;
+  container.append(card);
+};
+container.addEventListener('click',event=>{if(event.target.closest('a'))event.preventDefault();});
+const frame=document.querySelector('iframe');
+frame.addEventListener('load',()=>{
+  const doc=frame.contentDocument;
+  if(doc?.body)new ResizeObserver(()=>{frame.style.height=`${doc.body.scrollHeight+8}px`;}).observe(doc.body);
+});
+if(new URLSearchParams(location.search).has('test')) (async()=>{
+  const out=document.querySelector('#test-results'),wait=()=>new Promise(r=>setTimeout(r,250));
+  const assert=(v,s)=>{if(!v)throw Error(s);out.textContent+=`PASS ${s}\n`;};
+  const blocked=()=>document.querySelectorAll('.saf-blocked').length;
+  const state=()=>chrome.tabs.sendMessage(1,{type:'SAF_STATUS'});
+  const hero=document.querySelector('.store_main_capsule'),sale=document.querySelector('.sale_capsule');
+  const shadow=()=>document.querySelector('#saf-root').shadowRoot;
+  try{
+    await wait();
+    assert((await state()).kind==='home','homepage adapter is active');
+    assert((await state()).total===5,'all four homepage card layouts recognized; bundle/navigation/external excluded');
+    assert(blocked()===4,'highest level covers all available AI tag/disclosure matches');
+    assert(document.querySelector('.react-card').classList.contains('saf-blocked'),'duplicate app with no tags uses same-page evidence');
+    assert(document.querySelector('[href$="/303/"]').classList.contains('saf-blocked'),'visible comma-prefixed Chinese tag is recognized');
+    assert(hero.querySelector('.saf-mask-label').textContent==='人工智慧標籤','tag-only card has an accurate reason');
+    assert(sale.querySelector('.saf-mask-label').textContent==='AI 生成內容','disclosed AI card uses requested wording');
+    assert(getComputedStyle(hero).position==='absolute','carousel absolute positioning is preserved');
+    const rect=hero.getBoundingClientRect(),maskRect=hero.querySelector('.saf-mask').getBoundingClientRect();
+    assert(rect.width===maskRect.width&&rect.height===maskRect.height&&rect.height>0,'opaque mask fills card without collapsing its dimensions');
+    assert(getComputedStyle(hero.querySelector('.saf-mask')).backgroundColor==='rgb(32, 46, 59)','mask uses an opaque solid background');
+    assert(hero.querySelector('.capsule').inert && getComputedStyle(hero.querySelector('.capsule')).opacity==='0','covered art is visually and accessibly suppressed');
+    let hovered=0;hero.onmouseover=()=>hovered++;
+    hero.querySelector('.saf-mask').dispatchEvent(new MouseEvent('mouseover',{bubbles:true}));
+    assert(hovered===0,'covered card does not open Steam hover previews');
+    const event=new MouseEvent('click',{bubbles:true,cancelable:true});
+    hero.querySelector('.saf-mask').dispatchEvent(event);
+    assert(event.defaultPrevented&&shadow().querySelector('dialog').open,'clicking mask opens reasons and cancels navigation');
+    shadow().querySelector('#close').click();
+    hero.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true,cancelable:true}));
+    assert(shadow().querySelector('dialog').open,'covered card supports keyboard activation');
+    shadow().querySelector('#allow').click();await wait();shadow().querySelector('#close').click();
+    assert(blocked()===2&&!hero.querySelector('.capsule').inert,'allowlist restores all cards of same app and inert state');
+    assert(!hero.hasAttribute('role')&&!hero.hasAttribute('aria-label'),'original accessibility attributes restored');
+    await chrome.storage.local.set({allow:{},level:2});
+    assert(blocked()===1,'disclosure level does not cover tag-only games');
+    await chrome.storage.local.set({level:3});
+    await chrome.tabs.sendMessage(1,{type:'SAF_REVEAL'});
+    assert(blocked()===0,'temporary reveal removes all masks');
+    await chrome.tabs.sendMessage(1,{type:'SAF_REVEAL'});
+    document.querySelector('#append').click();await wait();
+    assert(blocked()===5,'dynamically loaded homepage cards are covered');
+    document.querySelector('[href$="/400/"]').remove();
+    hero.dataset.dsTagids='[19]';await wait();
+    assert(!document.querySelector('.react-card').classList.contains('saf-blocked'),'same-app shared evidence is cleared when source changes');
+    hero.dataset.dsTagids='[19,7926]';await wait();
+    assert(blocked()===4,'updated tag evidence re-applies masks');
+    // Add content under a covered card, as Steam does when loading a trailer.
+    const video=document.createElement('video');hero.append(video);await wait();
+    assert(video.inert && getComputedStyle(video).opacity==='0','late trailer remains covered and inert');
+    await chrome.storage.local.set({level:0});
+    assert(blocked()===0&&document.querySelectorAll('.saf-mask,.saf-badge').length===0,'off fully removes masks and badges');
+    assert(!video.inert&&getComputedStyle(hero).position==='absolute','off restores original child interaction and carousel layout');
+    await chrome.storage.local.set({level:3});await wait();
+    assert(document.querySelectorAll('.saf-mask').length===4,'repeated mode changes never duplicate masks');
+    out.textContent+='ALL HOMEPAGE TESTS PASSED';document.documentElement.dataset.tests='passed';
+  }catch(e){out.textContent+=`FAIL ${e.stack}`;document.documentElement.dataset.tests='failed';console.error(e);}
+})();

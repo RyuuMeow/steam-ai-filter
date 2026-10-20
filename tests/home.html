@@ -1,0 +1,49 @@
+<!doctype html><html lang="zh-Hant"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Steam AI Filter · 首頁遮罩預覽</title>
+<link rel="stylesheet" href="/dist/content.css">
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f3f6f8;color:#222435;font:16px/1.5 "Segoe UI","Microsoft JhengHei",sans-serif}
+main{max-width:1140px;margin:40px auto;padding:0 24px}h1{font-size:24px;margin:0 0 8px}header p{margin:0 0 24px;color:#5c6479}
+.layout{display:grid;grid-template-columns:360px 1fr;gap:32px;align-items:start}iframe{width:360px;height:420px;border:0;border-radius:20px}
+.responsive_page_template_content{background:#182738;color:#d6e4f1;border-radius:16px;padding:24px}
+h2{font-size:16px;font-weight:600;margin:16px 0 12px}
+a{color:#d6e4f1;text-decoration:none} .carousel{position:relative;height:176px}
+.store_main_capsule{position:absolute;inset:0;display:flex;background:#335166;border-radius:8px;overflow:hidden}
+.capsule{width:60%;background:linear-gradient(120deg,#527b88,#385365);display:grid;place-items:center;font-size:40px}
+.info{padding:24px}.app_name{font-size:20px}.info p{font-size:12px;color:#afc4d7}
+.tiles{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.sale_capsule,.react-card{display:block;position:relative;background:#345064;border-radius:8px;overflow:hidden;min-height:128px}
+.tile-art{height:88px;display:grid;place-items:center;background:#46677a;font-size:26px}
+.tile-name{font-size:14px;padding:8px 12px}.react-card img{width:100%;height:88px;background:#46677a}.react-card .tile-name{display:block}
+.tab_row_item{position:relative;display:flex;gap:12px;align-items:center;background:#294154;margin:8px 0;border-radius:6px;min-height:76px;padding:12px}
+.tab_item_header{height:48px;width:64px;display:grid;place-items:center;background:#426278;border-radius:4px}
+.tab_item_title{font-size:14px}.top_tag{font-size:12px;color:#afc4d7}
+.sample-note{font-size:12px;color:#afc4d7;margin-top:16px}
+pre{font:13px/1.5 Consolas,monospace;white-space:pre-wrap}
+.controls{margin:24px 0;display:flex;gap:12px}.controls button{padding:8px 12px;border:1px solid #d3dee4;border-radius:8px;background:white;cursor:pointer}
+@media(max-width:780px){main{padding:0 8px;margin:24px auto}.layout{grid-template-columns:1fr}iframe{max-width:100%}}
+</style>
+<main><header><h1>Steam AI Filter <small style="font-size:14px;font-weight:400;color:#5c6479">v0.2</small></h1><p>首頁遮罩預覽 · 保留卡片位置，遮住命中的遊戲內容。</p></header>
+<div class="layout"><iframe src="/preview-popup.html" title="插件彈窗預覽"></iframe>
+<div class="responsive_page_template_content"><div class="home_page_content">
+<h2>精選與推薦</h2>
+<div class="carousel"><a class="store_main_capsule" href="https://store.steampowered.com/app/301/" data-ds-appid="301" data-ds-tagids="[19,7926]">
+<div class="capsule">◈</div><div class="info"><div class="app_name">Signal Garden</div><p>人工智慧題材 · 虛構示範</p></div></a></div>
+<h2>特惠</h2><div class="tiles">
+<a class="sale_capsule" href="https://store.steampowered.com/app/302/" data-ds-tagids="[19]"><div class="tile-art">◇</div><div class="tile-name"><span class="title">Generated Worlds</span></div>
+<div class="game_area_description" hidden><h2>AI Generated Content Disclosure</h2><p><i>Demo disclosure: some art uses generative AI.</i></p></div></a>
+<a class="react-card" href="https://store.steampowered.com/app/301/"><img alt="Signal Garden" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E"><span class="tile-name">Signal Garden · 另一張卡片</span></a>
+</div>
+<h2>熱門新品</h2>
+<a class="tab_row_item" href="https://store.steampowered.com/app/303/"><div class="tab_item_header">◎</div><div><div class="tab_item_title">Companion Protocol</div><div class="tab_item_tags"><span class="top_tag">模擬</span><span class="top_tag">, 人工智慧</span></div></div></a>
+<a class="tab_row_item" href="https://store.steampowered.com/app/304/" data-ds-tagids="[19,21]"><div class="tab_item_header">△</div><div><div class="tab_item_title">Quiet Valley</div><div class="tab_item_tags"><span class="top_tag">冒險</span></div></div></a>
+<div hidden><a class="sale_capsule" href="https://store.steampowered.com/bundle/50/" data-ds-appid="301,305" data-ds-tagids="[7926]">bundle</a>
+<a href="https://store.steampowered.com/recommender/" data-ds-appid="301">navigation</a>
+<a class="sale_capsule" href="https://example.com/app/301/" data-ds-tagids="[7926]">external</a></div>
+<p class="sample-note">虛構示範資料，使用首頁實際觀察到的卡片結構。AI 揭露卡片僅供測試；真實首頁未必提供揭露。</p>
+</div></div></div>
+<div class="controls"><button id="append">模擬追加首頁卡片</button><button id="reset">重設預覽</button></div>
+<pre id="test-results"></pre></main>
+<script src="/tests/bridge.js"></script><script src="/tests/home-setup.js"></script>
+<script src="/dist/core.js"></script><script src="/dist/mask.js"></script><script src="/dist/content.js"></script>
+<script src="/tests/home.js"></script></html>

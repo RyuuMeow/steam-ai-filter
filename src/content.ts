@@ -1,7 +1,10 @@
 (() => {
   const appMatch = location.pathname.match(/^\/app\/(\d+)(?:\/|$)/);
-  const isSearch = /^\/search\/?$/.test(location.pathname);
-  if (!appMatch && !isSearch) return;
+  const kind = SAF.pageKind(location.pathname);
+  const isSearch = kind === "search";
+  const isHome = kind === "home";
+  const isListing = isSearch || isHome;
+  if (!appMatch && !isListing) return;
   if (document.getElementById("saf-root")) return;
   let settings: SAF.Settings = {level: 1, allow: {}};
   let revealing = false;
@@ -9,8 +12,10 @@
   let timer = 0;
   let currentDialog: SAF.Evidence | null = null;
   let previousStatus = "";
-  let status: SAF.Status = {kind: isSearch ? "search" : "app", total: 0, hidden: 0, matched: 0, unknown: 0, revealing};
+  let status: SAF.Status = {kind: isHome ? "home" : isSearch ? "search" : "app", total: 0, hidden: 0, matched: 0, unknown: 0, revealing};
   const entries = new Map<Element, SAF.Evidence>();
+  let effective = new Map<Element, SAF.Evidence>();
+  const watched = new WeakSet<Element>();
   const dirty = new Set<Element>();
   const host = document.createElement("div");
   host.id = "saf-root";
@@ -54,10 +59,10 @@
     error.hidden = false; error.textContent = "設定讀取或儲存失敗，請重新整理後再試。";
   }
   function placeHost(): boolean {
-    if (isSearch) {
-      const target = document.querySelector("#search_resultsRows");
+    if (isListing) {
+      const target = document.querySelector(isHome ? ".home_page_content, .home_ctn" : "#search_resultsRows");
       if (!target) return false;
-      if (!host.isConnected) target.before(host);
+      if (!host.isConnected) { if (isHome) target.prepend(host); else target.before(host); }
     } else {
       const title = document.querySelector("#appHubAppName, .apphub_AppName");
       if (!title) return false;
@@ -89,16 +94,43 @@
     finally { allowButton.disabled = false; }
   };
   reveal.onclick = () => { revealing = !revealing; render(); };
+  function watchCard(card: Element) {
+    if (watched.has(card)) return;
+    watched.add(card);
+    const activate = (event: Event) => {
+      if (!card.classList.contains("saf-blocked")) return;
+      if (event instanceof KeyboardEvent && !["Enter", " "].includes(event.key)) return;
+      event.preventDefault(); event.stopImmediatePropagation();
+      const evidence = effective.get(card);
+      if (evidence) openReason(evidence);
+    };
+    card.addEventListener("click", activate, true);
+    card.addEventListener("auxclick", event => {
+      if (card.classList.contains("saf-blocked")) { event.preventDefault(); event.stopImmediatePropagation(); }
+    }, true);
+    card.addEventListener("keydown", activate, true);
+  }
+  // Stop Steam hover previews for covered cards, including inline hover handlers.
+  for (const type of ["mouseover", "mouseenter", "pointerover", "pointerenter", "focusin"]) {
+    document.addEventListener(type, event => {
+      if ((event.target as Element)?.closest?.(".saf-blocked")) event.stopImmediatePropagation();
+    }, true);
+  }
+  document.addEventListener("play", event => {
+    if (event.target instanceof HTMLMediaElement && event.target.closest(".saf-blocked")) event.target.pause();
+  }, true);
   function render() {
     let hidden = 0, matched = 0, unknown = 0;
     const candidates = new Map<string, SAF.Evidence>();
-    for (const [element, evidence] of entries) {
+    effective = SAF.mergeEvidence(entries);
+    for (const [element, evidence] of effective) {
       const match = Boolean(evidence.disclosure || evidence.tagMatch);
       if (match) { matched++; candidates.set(evidence.id, evidence); } else unknown++;
-      const hide = isSearch && !revealing && SAF.shouldHide(evidence, settings.level, settings.allow);
+      const hide = isListing && !revealing && SAF.shouldHide(evidence, settings.level, settings.allow);
       if (hide) hidden++;
-      if (isSearch) {
-        element.classList.toggle("saf-hidden", hide);
+      if (isListing) {
+        watchCard(element);
+        SAF.syncMask(element, hide ? evidence : null);
         const existing = element.querySelector<HTMLElement>(".saf-badge");
         if (settings.level === 0 || !match) existing?.remove();
         else {
@@ -109,28 +141,35 @@
             badge.className = "saf-badge"; badge.tabIndex = 0; badge.setAttribute("role", "button");
             const show = (event: Event) => {
               event.preventDefault(); event.stopPropagation();
-              const latest = entries.get(element);
+              const latest = effective.get(element);
               if (latest) openReason(latest);
             };
             badge.onclick = show;
             badge.onkeydown = event => { if (event.key === "Enter" || event.key === " ") show(event); };
+            if (isHome) {
+              badge.classList.add("saf-home-badge");
+              if (getComputedStyle(element).position === "static") element.classList.add("saf-badge-positioned");
+            }
             (element.querySelector(".search_name") || element).append(badge);
           }
         }
+        // Include any newly inserted badge in the mask's accessibility suppression.
+        if (hide) SAF.syncMask(element, evidence);
+        if (settings.level === 0 || !match) element.classList.remove("saf-badge-positioned");
       }
     }
-    status = {kind: isSearch ? "search" : "app", total: entries.size, hidden, matched, unknown, revealing};
+    status = {kind: isHome ? "home" : isSearch ? "search" : "app", total: entries.size, hidden, matched, unknown, revealing};
     bar.hidden = settings.level === 0;
     host.style.display = settings.level === 0 ? "none" : "";
     if (settings.level === 0 && dialog.open) dialog.close();
-    stat.textContent = isSearch
-      ? revealing ? `暫時顯示全部 ${entries.size} 筆` : `已隱藏 ${hidden} / ${entries.size} 筆`
+    stat.textContent = isListing
+      ? revealing ? `暫時顯示全部 ${entries.size} 筆` : `已遮蔽 ${hidden} / ${entries.size} 筆`
       : matched ? "這款遊戲有符合的訊號" : "本頁未取得 AI 使用訊號";
     const issues = Array.from(entries.values()).filter(e => e.parseIssue).length;
-    note.textContent = isSearch
-      ? `僅依本頁資料判斷；${unknown} 筆資訊不足。搜尋卡片可能沒有完整標籤或 AI 揭露。${issues ? ` ${issues} 筆標籤格式無法讀取。` : ""}`
+    note.textContent = isListing
+      ? `僅依本頁資料判斷；${unknown} 筆資訊不足。卡片可能沒有完整標籤或 AI 揭露。${issues ? ` ${issues} 筆標籤格式無法讀取。` : ""}`
       : "詳情頁保留供你查看。未取得訊號不代表沒有使用 AI。";
-    reveal.hidden = !isSearch || (hidden === 0 && !revealing);
+    reveal.hidden = !isListing || (hidden === 0 && !revealing);
     reveal.textContent = revealing ? "恢復過濾" : "暫時顯示";
     shadow.querySelector<HTMLElement>("#matches")!.hidden = candidates.size === 0;
     // Shadow-root updates do not feed the page observer.
@@ -151,19 +190,22 @@
   function scan() {
     timer = 0;
     if (!ready || !placeHost()) return;
-    if (isSearch) {
-      const cards = new Set(document.querySelectorAll("#search_resultsRows a.search_result_row"));
+    if (isListing) {
+      const cards = new Set(SAF.collectCards(document, isHome ? "home" : "search"));
       for (const element of entries.keys()) {
-        if (!cards.has(element)) { element.classList.remove("saf-hidden"); element.querySelector(".saf-badge")?.remove(); entries.delete(element); }
+        if (!cards.has(element)) {
+          SAF.syncMask(element, null); element.classList.remove("saf-badge-positioned");
+          element.querySelector(".saf-badge")?.remove(); entries.delete(element);
+        }
       }
       for (const card of cards) {
         if (entries.has(card) && !dirty.has(card)) continue;
-        const id = card.getAttribute("data-ds-appid") || new URL((card as HTMLAnchorElement).href).pathname.match(/^\/app\/(\d+)/)?.[1];
+        const id = SAF.cardId(card);
         if (!id || !/^\d+$/.test(id)) {
-          card.classList.remove("saf-hidden"); card.querySelector(".saf-badge")?.remove();
+          SAF.syncMask(card, null); card.querySelector(".saf-badge")?.remove();
           entries.delete(card); continue; // bundles and packages aren't a single game
         }
-        const title = card.querySelector(".title")?.textContent?.trim() || `App ${id}`;
+        const title = SAF.cardTitle(card, id);
         entries.set(card, SAF.readEvidence(card, id, title));
       }
     } else {
@@ -178,13 +220,13 @@
     let relevant = false;
     for (const record of records) {
       const el = record.target instanceof Element ? record.target : record.target.parentElement;
-      if (!el || el.closest("#saf-root, .saf-badge")) continue;
+      if (!el || el.closest("#saf-root, .saf-badge, .saf-mask")) continue;
       if (record.type === "childList") {
         const nodes = [...record.addedNodes, ...record.removedNodes];
-        if (nodes.length && nodes.every(n => n instanceof Element && (n.id === "saf-root" || n.classList.contains("saf-badge")))) continue;
+        if (nodes.length && nodes.every(n => n instanceof Element && (n.id === "saf-root" || n.matches(".saf-badge, .saf-mask")))) continue;
       }
       relevant = true;
-      const card = el.closest(".search_result_row");
+      const card = el.closest("a[href]");
       if (card) dirty.add(card);
     }
     if (relevant) schedule();
@@ -209,7 +251,7 @@
     settings = data; ready = true; scan();
     observer.observe(document.body, {
       subtree: true, childList: true, characterData: true,
-      attributes: true, attributeFilter: ["data-ds-tagids", "data-ds-appid", "href"]
+      attributes: true, attributeFilter: ["data-ds-tagids", "data-ds-appid", "href", "alt"]
     });
   }).catch(e => { placeHost(); report(e); });
 })();

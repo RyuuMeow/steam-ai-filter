@@ -10,7 +10,7 @@ namespace SAF {
   }
   export interface Settings { level: Level; allow: Record<string, string> }
   export interface Status {
-    kind: "search" | "app";
+    kind: "search" | "home" | "app";
     total: number;
     hidden: number;
     matched: number;
@@ -20,8 +20,8 @@ namespace SAF {
   export const levels = [
     {name: "關閉", description: "保留 Steam 原本的顯示方式。"},
     {name: "標示", description: "標出 AI 揭露與人工智慧標籤，保留所有遊戲。"},
-    {name: "揭露", description: "隱藏本頁提供明確 AI 使用揭露的遊戲。"},
-    {name: "廣泛", description: "同時隱藏帶有「人工智慧」標籤的遊戲。標籤也可能只是題材。"}
+    {name: "揭露", description: "遮蔽本頁提供明確 AI 使用揭露的遊戲。"},
+    {name: "廣泛", description: "同時遮蔽帶有「人工智慧」標籤的遊戲。標籤也可能只是題材。"}
   ] as const;
   export function normalizeLevel(value: unknown): Level {
     return typeof value === "number" && Number.isInteger(value) && value >= 0 && value <= 3
@@ -84,13 +84,50 @@ namespace SAF {
     const parsed = parseTagIds(raw);
     // Scope to product tags only. Never inspect search-sidebar tag controls.
     const tagScope = scope instanceof Document ? scope.querySelector(`.glance_tags[data-appid="${id}"]`) : scope;
-    const tags = Array.from(tagScope?.querySelectorAll(".app_tag") || []);
+    const tags = Array.from(tagScope?.querySelectorAll(".app_tag, .tab_item_tags .top_tag, .tab_item_top_tags .top_tag") || []);
     return {
-      id, title, tagMatch: parsed.ids.includes("7926") || tags.some(e => isAITag(e.textContent || "")),
+      id, title, tagMatch: parsed.ids.includes("7926") || tags.some(e => isAITag((e.textContent || "").replace(/^[,\s，]+/, ""))),
       tagAvailable: raw !== null || tags.length > 0,
       disclosure: readDisclosure(scope),
       parseIssue: parsed.issue
     };
+  }
+  export function pageKind(path: string): "home" | "search" | "app" | null {
+    if (path === "/") return "home";
+    if (/^\/search\/?$/.test(path)) return "search";
+    if (/^\/app\/\d+(?:\/|$)/.test(path)) return "app";
+    return null;
+  }
+  export function cardId(card: Element): string | null {
+    const href = card.getAttribute("href");
+    if (!href) return null;
+    try {
+      const url = new URL(href, location.href);
+      if (url.hostname !== "store.steampowered.com" && url.origin !== location.origin) return null;
+      return url.pathname.match(/^\/app\/(\d+)(?:\/|$)/)?.[1] || null;
+    } catch { return null; }
+  }
+  export function collectCards(root: Document, kind: "home" | "search"): Element[] {
+    const scope = kind === "home" ? root.querySelector(".responsive_page_template_content, .home_ctn, .home_page_content") : root.querySelector("#search_resultsRows");
+    if (!scope) return [];
+    return Array.from(scope.querySelectorAll(kind === "search" ? "a.search_result_row" : "a[href]"))
+      .filter(e => cardId(e) !== null && (kind === "search" ||
+        e.matches(".store_main_capsule, .sale_capsule, .tab_row_item, .tab_item, .home_smallcap, .small_cap") || Boolean(e.querySelector("img"))));
+  }
+  export function cardTitle(card: Element, id: string): string {
+    return card.querySelector(".title, .app_name, .tab_item_title, .tab_item_name")?.textContent?.trim()
+      || card.querySelector("img[alt]")?.getAttribute("alt")?.trim() || `App ${id}`;
+  }
+  export function mergeEvidence(entries: Iterable<[Element, Evidence]>): Map<Element, Evidence> {
+    const all = Array.from(entries), byId = new Map<string, Evidence>();
+    for (const [, e] of all) {
+      const other = byId.get(e.id);
+      byId.set(e.id, other ? {...e, tagMatch: other.tagMatch || e.tagMatch,
+        disclosure: other.disclosure || e.disclosure, tagAvailable: other.tagAvailable || e.tagAvailable,
+        parseIssue: other.parseIssue || e.parseIssue} : e);
+    }
+    // Merge afresh on every render so removed signals never remain sticky.
+    return new Map(all.map(([el, e]) => [el, {...byId.get(e.id)!, title: e.title}]));
   }
   export async function getSettings(): Promise<Settings> {
     const data = await chrome.storage.local.get(["level", "allow"]);

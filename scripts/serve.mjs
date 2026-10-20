@@ -7,7 +7,8 @@ http.createServer(async(req,res)=>{
   try{
     const url=new URL(req.url,'http://localhost');
     let name=url.pathname;
-    if(name==='/'||name==='/search/') name='/tests/fixture.html';
+    if(name==='/') name='/tests/home.html';
+    if(name==='/search/') name='/tests/fixture.html';
     if(name.startsWith('/app/')) name='/tests/detail.html';
     if(name==='/preview-popup.html'){
       let html=await readFile(path.join(root,'dist/popup.html'),'utf8');

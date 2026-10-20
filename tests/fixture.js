@@ -22,7 +22,7 @@ if(new URLSearchParams(location.search).has('test')) {
   const pause=ms=>new Promise(r=>setTimeout(r,ms));
   const assert=(condition,message)=>{if(!condition)throw Error(message);output.textContent+=`PASS ${message}\n`;};
   const shadow=()=>document.querySelector('#saf-root').shadowRoot;
-  const hidden=()=>document.querySelectorAll('.saf-hidden').length;
+  const hidden=()=>document.querySelectorAll('.saf-blocked').length;
   const message=type=>chrome.tabs.sendMessage(1,{type});
   (async()=>{
     await pause(250);
@@ -31,7 +31,7 @@ if(new URLSearchParams(location.search).has('test')) {
     assert(hidden()===0,'tag-only games survive disclosure level');
     await chrome.storage.local.set({level:3});
     assert(hidden()===2,'broad level hides exactly the two tag matches');
-    assert(!document.querySelector('[data-ds-appid="104"]').classList.contains('saf-hidden'),'AI in title is not a match');
+    assert(!document.querySelector('[data-ds-appid="104"]').classList.contains('saf-blocked'),'AI in title is not a match');
     await message('SAF_REVEAL');assert(hidden()===0,'temporarily reveal restores cards');
     await message('SAF_REVEAL');assert(hidden()===2,'restore filtering works');
     await chrome.storage.local.set({allow:{101:'Neon Companion'}});
@@ -44,7 +44,7 @@ if(new URLSearchParams(location.search).has('test')) {
     row.dataset.dsTagids='[19]';await pause(250);
     assert(hidden()===2 && !row.querySelector('.saf-badge'),'changed tag attributes remove stale matches');
     row.dataset.dsTagids='bad-json';await pause(250);
-    assert(!row.classList.contains('saf-hidden'),'malformed tag data remains visible');
+    assert(!row.classList.contains('saf-blocked'),'malformed tag data remains visible');
     const e=SAF.readEvidence(row,'200','Changed');assert(e.parseIssue,'parse issue is explicit');
     await chrome.storage.local.set({level:0});
     assert(hidden()===0 && document.querySelectorAll('.saf-badge').length===0,'off restores all cards and removes badges');
@@ -55,7 +55,7 @@ if(new URLSearchParams(location.search).has('test')) {
     const section=document.createElement('div');section.className='game_area_description';
     section.innerHTML='<h2>AI Generated Content Disclosure</h2><p><i>Some artwork uses AI.</i></p>';
     row.append(section);await pause(250);await chrome.storage.local.set({level:2});
-    assert(hidden()===1 && row.classList.contains('saf-hidden'),'explicit disclosure is hidden at level 2');
+    assert(hidden()===1 && row.classList.contains('saf-blocked'),'explicit disclosure is hidden at level 2');
     row.remove();await pause(250);
     assert((await message('SAF_STATUS')).total===4,'removed cards are dropped from counts');
     // Dialog text must remain inert.
