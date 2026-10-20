@@ -1,8 +1,12 @@
-# Steam AI Filter
+# Steam AI Filter — Steam AI 生成內容過濾器
+
+A Chrome extension that filters Steam store games using their AI content disclosures. Hide or mark matching games, with configurable code-only exceptions and local caching.
 
 在 Chrome 瀏覽 Steam 商店時，依商品頁的 AI 使用揭露過濾遊戲。可以遮蔽卡片、直接剔除，也可以只加上標示。
 
-目前版本 **v0.7.1**。從 **Releases** 下載插件 RAR，解壓後即可載入，安裝不需要 Node.js。
+目前版本 **v0.7.1**。從 **[Releases](https://github.com/RyuuMeow/steam-ai-filter/releases/latest)** 下載插件 RAR，解壓後即可載入，安裝不需要 Node.js。
+
+[下載插件 RAR](https://github.com/RyuuMeow/steam-ai-filter/releases/latest/download/steam-ai-filter-v0.7.1.rar) · [MIT 授權](LICENSE)
 
 - **四檔過濾**：關閉、標示、揭露、廣泛。
 - **兩種呈現**：遮蔽保留版面，剔除收起完整遊戲區塊。
@@ -13,7 +17,7 @@
 
 ### 1. 下載並解壓縮
 
-在 GitHub 此頁右側開啟 **Releases**，進入最新版本，在 **Assets** 下載 **`steam-ai-filter-v0.7.1.rar`**。
+開啟 **[最新 Release](https://github.com/RyuuMeow/steam-ai-filter/releases/latest)**，在 **Assets** 下載 **`steam-ai-filter-v0.7.1.rar`**。
 
 將 RAR **解壓縮至同名資料夾**（例如 WinRAR 的「解壓縮至 steam-ai-filter-v0.7.1\\」）。這個資料夾就是稍後要選取的插件，裡面直接有 `manifest.json`。
 
@@ -28,7 +32,7 @@ steam-ai-filter-v0.7.1/  ← 在 Chrome 選這一層
 
 選取的資料夾內必須直接看到 `manifest.json`，不要選 RAR 檔。
 
-若尚未建立 Release，也可用 **Code → Download ZIP** 下載 repo，完整解壓後選取其中的 **[extension/](extension/)**。
+也可用 **Code → Download ZIP** 下載 repo，完整解壓後選取其中的 **[extension/](extension/)**。
 
 ### 2. 開啟 Chrome 擴充功能頁面
 
@@ -108,3 +112,7 @@ npm run dev
 推送 `v版本號` 標籤會自動執行檢查並建立 GitHub Release，附件只有插件本體的 RAR。詳見[自動發版](docs/development.md#自動發版)。
 
 [開發與驗證指引](docs/development.md) · [設計與模組分工](docs/design.md) · [v0.7.1 驗證紀錄](docs/validation.md)
+
+## 授權
+
+以 [MIT License](LICENSE) 開源。插件安裝包也附有同一份授權文字。

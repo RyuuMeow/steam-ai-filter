@@ -21,8 +21,9 @@ async function filesIn(directory, prefix = '') {
 const pkg = JSON.parse(await readFile(path.join(root, 'package.json'), 'utf8'));
 const manifest = JSON.parse(await readFile(path.join(root, 'dist/manifest.json'), 'utf8'));
 if (manifest.version !== pkg.version) throw new Error('Manifest and package versions differ. Build first.');
-// Only public assets and compiled source modules belong in the installable folder.
+// Include the license with public assets and compiled source modules.
 const files = [
+  'LICENSE',
   ...await filesIn(path.join(root, 'public')),
   ...(await filesIn(path.join(root, 'src'))).filter(file => file.endsWith('.ts')).map(file => file.replace(/\.ts$/, '.js'))
 ].sort();

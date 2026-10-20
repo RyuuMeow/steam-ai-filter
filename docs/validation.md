@@ -12,13 +12,13 @@
 
 - README 改為安裝與使用入口，3 張教學截圖按順序改名，保留原始圖像內容；較詳細的說明集中於 `docs/`。
 - 檢查 README 與 docs 的 repo 相對連結及圖片路徑，檔名大小寫與標題錨點均有效。
-- `npm run package` 及 `npm run package:check` 通過：`extension/` 為 v0.7.1，共 19 個檔案，與建置內容一致，不含測試替身。
+- `npm run package` 及 `npm run package:check` 通過：`extension/` 為 v0.7.1，共 20 個檔案（含 MIT `LICENSE`），與建置內容一致，不含測試替身。
 - 說明調整為 12px 灰字，選項名稱保留 14px 並加重；目視確認正式 popup，並重跑 29 項設定／自動忽略測試與 7 項尺寸測試通過。
 
 ## RAR 與自動發版
 
 - 本機以 WinRAR 的 CLI 執行 `npm run package:rar`，確認產物為真正的 RAR 5 格式。
-- 壓縮檔測試、檔案清單與完整解壓比對通過：僅 19 個插件檔案，`manifest.json` 在根目錄，每個檔案與 `extension/` 的內容一致。
+- 壓縮檔測試、檔案清單與完整解壓比對通過：20 個檔案（插件與 MIT `LICENSE`），`manifest.json` 在根目錄，每個檔案與 `extension/` 的內容一致。
 - 版本測試涵蓋錯誤標籤、過期 manifest／lockfile、遺漏版本及不支援的版本格式，避免錯版發佈。
 - GitHub Release 僅設定一個 RAR 附件；遠端流程尚未執行，需將 repo 與版本標籤推送至 GitHub 後確認。
 

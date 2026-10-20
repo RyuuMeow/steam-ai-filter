@@ -1,6 +1,7 @@
-import {cp, mkdir, readFile, writeFile} from 'node:fs/promises';
+import {copyFile, cp, mkdir, readFile} from 'node:fs/promises';
 await mkdir('dist', {recursive:true});
 await cp('public', 'dist', {recursive:true});
+await copyFile('LICENSE', 'dist/LICENSE');
 const manifest = JSON.parse(await readFile('dist/manifest.json','utf8'));
 if (manifest.permissions.join(',') !== 'storage,alarms') throw new Error('Unexpected permission');
 // Keep preview and test shims outside the extension package.

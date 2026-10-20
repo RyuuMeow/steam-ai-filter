@@ -2,7 +2,21 @@
   "name": "steam-ai-filter",
   "version": "0.7.1",
   "private": true,
-  "description": "Chrome extension for filtering Steam store games by AI disclosure.",
+  "license": "MIT",
+  "description": "Chrome extension to hide or mark Steam games with disclosed AI-generated content.",
+  "keywords": [
+    "steam",
+    "steam-store",
+    "chrome-extension",
+    "ai-generated-content",
+    "ai-disclosure",
+    "content-filter"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/RyuuMeow/steam-ai-filter.git"
+  },
+  "homepage": "https://github.com/RyuuMeow/steam-ai-filter",
   "engines": {
     "node": ">=22"
   },

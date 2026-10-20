@@ -66,7 +66,7 @@ git push origin v0.7.1
 3. 產生 `steam-ai-filter-v版本.rar`，測試壓縮檔並實際解壓，比對每個檔案的內容及路徑。
 4. 建立 GitHub Release，**只上傳這個插件 RAR**。
 
-RAR 根目錄直接包含 `manifest.json`、程式、樣式與圖示，不含原始碼、文件、測試或多餘的 `extension/` 外層。
+RAR 根目錄直接包含 `manifest.json`、程式、樣式、圖示與 MIT `LICENSE`，不含原始碼、開發文件、測試或多餘的 `extension/` 外層。
 GitHub 另外自動顯示的 **Source code (zip/tar.gz)** 連結由平台提供；一般使用者下載 RAR 即可。
 流程使用 GitHub 內建的 `GITHUB_TOKEN`，不需要另建 token。遠端 Actions 結果可在 repo 的 **Actions → Release** 查看。
 
@@ -93,6 +93,6 @@ repo 根目錄是含有 `README.md`、`package.json`、`src/`、`extension/` 的
 上傳時保留 `docs/images/` 與 `extension/`，README 的圖片與免建置安裝才能正常使用。
 `node_modules/`、`dist/`、`artifacts/` 是本機產物，已列入 `.gitignore`。
 
-專案尚未指定授權條款；這份 repo 沒有自行加入 LICENSE。
+專案使用 [MIT License](../LICENSE)。建置及 RAR 安裝包會自動附上根目錄的授權文字。
 
 [回到 README](../README.md)
