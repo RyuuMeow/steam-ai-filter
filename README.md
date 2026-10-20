@@ -6,7 +6,7 @@ A Chrome extension that filters Steam store games using their AI content disclos
 
 目前版本 **v0.7.1**。從 **[Releases](https://github.com/RyuuMeow/steam-ai-filter/releases/latest)** 下載插件 RAR，解壓後即可載入，安裝不需要 Node.js。
 
-[下載插件 RAR](https://github.com/RyuuMeow/steam-ai-filter/releases/latest/download/steam-ai-filter-v0.7.1.rar) · [MIT 授權](LICENSE)
+[下載插件 RAR](https://github.com/RyuuMeow/steam-ai-filter/releases/download/v0.7.1/steam-ai-filter-v0.7.1.rar) · [MIT 授權](LICENSE)
 
 - **四檔過濾**：關閉、標示、揭露、廣泛。
 - **兩種呈現**：遮蔽保留版面，剔除收起完整遊戲區塊。

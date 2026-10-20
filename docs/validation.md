@@ -20,7 +20,8 @@
 - 本機以 WinRAR 的 CLI 執行 `npm run package:rar`，確認產物為真正的 RAR 5 格式。
 - 壓縮檔測試、檔案清單與完整解壓比對通過：20 個檔案（插件與 MIT `LICENSE`），`manifest.json` 在根目錄，每個檔案與 `extension/` 的內容一致。
 - 版本測試涵蓋錯誤標籤、過期 manifest／lockfile、遺漏版本及不支援的版本格式，避免錯版發佈。
-- GitHub Release 僅設定一個 RAR 附件；遠端流程尚未執行，需將 repo 與版本標籤推送至 GitHub 後確認。
+- [GitHub Actions Release](https://github.com/RyuuMeow/steam-ai-filter/actions/runs/39428290819) 已完成遠端檢查、建置、RAR 驗證及發布；首次對既有 `v0.7.1` 標籤使用手動啟動入口。
+- [v0.7.1 Release](https://github.com/RyuuMeow/steam-ai-filter/releases/tag/v0.7.1) 僅含一個 RAR 附件。下載實際附件後，再次驗證 SHA-256、RAR 完整性、20 個解壓檔案及 MIT 授權，均通過。
 
 ## 首頁修正
 
@@ -66,6 +67,6 @@
 - 真實帳號寫入、登入 cookies 的當下效果與 Steam 的限制，未以使用者帳號執行測試。30 秒是插件採用的間隔，並非官方保證的安全速率。
 - 過去公開頁面查詢已確認可解析 AI 揭露，也確認年齡驗證 redirect 會保持未知。匿名 Node 查詢不能證明登入後的成人商品頁一定可用。
 - 固定尺寸 fixture 驗證 popup 從 25／95／800px 初始視窗都回到 320px；不等同真實工具列 popup 的所有宿主行為。
-- GitHub Actions 已配置，遠端執行結果需在上傳後確認。
+- [GitHub Actions Check](https://github.com/RyuuMeow/steam-ai-filter/actions/runs/39428274478) 已通過型別檢查、52 組 Node 測試、建置及安裝包比對；瀏覽器 fixture 的結果來自前述本機驗證。
 
 [回到 README](../README.md)
