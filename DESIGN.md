@@ -6,6 +6,8 @@ v0.4.1 依 ui-subtraction 精簡彈窗：320px 白色單一表面，移除外層
 
 Tokens 在 `public/tokens.css`：以參考圖藍色為基底，透過 refactoring-ui palette generator 生成藍、紫、冷灰色階。彈窗使用 14px 正文／控制標籤與 16px 標題，字重 400/600；不保留說明的固定高度。白色介面固定，不跟隨深色模式；Steam 內嵌提示採深色以融入商店。原生 range、details、按鈕保留鍵盤操作與焦點樣式，沿用減少動畫設定。
 
+v0.4.2 將 html/body 的 width 與 min-width 明確設為 320px，移除 max-width:100vw。Chrome 的 [action popup 會依內容自動決定大小](https://developer.chrome.com/docs/extensions/reference/api/action#popup)，不能讓內容反過來受初始視窗寬度限制。前版在固定 320/280px iframe 檢查沒有涵蓋這個尺寸回饋問題；新 fixture 從 25/95/800px 分別開始量測同一份正式 popup。
+
 ## 邊界
 
 - `src/core.ts`：純判斷、頁面證據抽取、設定正規化。
@@ -20,6 +22,8 @@ Tokens 在 `public/tokens.css`：以參考圖藍色為基底，透過 refactorin
 Chrome 的 content scripts 依序載入 lookup.js、core.js、mask.js、content.js。資料保存在 chrome.storage.local，要求 storage 與 Steam 商店的主機權限；腳本注入與背景訊息驗證均涵蓋整個 store.steampowered.com，不再白名單頁面路徑。pageKind 只標示頁面類型，不控制是否掃描。lookup.js 在內容腳本中只使用快取驗證函式，實際 Resolver 在背景 worker 中運作，跨分頁共用佇列。彈窗可以清除查詢快取。
 
 動態內容以 100ms 合併變更，搜尋卡片只重新抽取新增或標記為 dirty 的項目；被移除的卡片會從索引清除。插件 UI 放在 shadow root，避免它的更新反覆觸發頁面 observer。遮蔽採絕對定位的純色覆蓋層，原卡片子元素保留布局但變成透明及 inert。絕對定位輪播保留其 position，只有 static 卡片補上 relative。恢復時移除遮罩並還原 aria／inert，不覆寫 Steam 原本的 display。
+
+內容腳本以 runtime.id 與明確的 invalidated 錯誤偵測失效。sendMessage 放在 async/try 內，同時捕捉立即拋出及 Promise 拒絕；storage 的初始化、例外寫入與設定更新也走相同的停止處理。停止狀態不可逆：斷開 DOM/可視區 observer、清除掃描與重試 timer、用 AbortController 移除頁面/卡片事件、關閉 dialog、還原遮罩與無障礙屬性、清空索引，最後只留一則刷新提示。進行中的回應先檢查狀態，不回填或重啟。未開啟 popup 所造成的「沒有接收端」仍是正常情況，不會停用過濾。
 
 所有頁面在整份 document 尋找帶有圖片／影片／行內背景的 app 連結或單一 App ID／item key 容器，也涵蓋既有文字式列表。排除導航、組合包及外站，不依賴 home/search 根容器。向上合併推薦圖組時要求新增資產的 URL App ID 相同或父容器有明確同款 ID，並在混合遊戲列表與頁面根節點停止。祖先分析每次掃描共用快取，避免逐卡重做大容器分析；刪除巢狀重複候選。同一 app 共享當前正向訊號，重新合併時不保留已移除的 tag。400px 可視區排程與快取適用所有卡片，包括詳情頁的其他遊戲；詳情頁本身不遮蔽。
 

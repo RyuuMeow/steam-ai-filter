@@ -19,6 +19,7 @@
       onChanged:{addListener:fn=>bridge.changes.push(fn)}
     },
     runtime:{
+      id:'fixture-extension',
       onMessage:{addListener:fn=>bridge.messages.push(fn)},
       sendMessage:async message=>{
         if(message.type==='SAF_LOOKUP') return owner.testLookup ? owner.testLookup(message.id) :

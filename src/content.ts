@@ -5,6 +5,8 @@
   let settings: SAF.Settings = {level: 1, allow: {}};
   let revealing = false;
   let ready = false;
+  let stopped = false;
+  const events = new AbortController();
   let timer = 0;
   let currentDialog: SAF.Evidence | null = null;
   let previousStatus = "";
@@ -18,11 +20,31 @@
   const requesting = new Set<string>();
   let retryTimer = 0;
   const visibility = new IntersectionObserver(records => {
+    if (!contextReady()) return;
     for (const record of records) {
       if (record.isIntersecting) nearby.add(record.target); else nearby.delete(record.target);
     }
     if (ready) render();
   }, {rootMargin: "400px"});
+  function contextReady(): boolean {
+    if (stopped) return false;
+    try {
+      if (chrome.runtime?.id) return true;
+    } catch { stop(); return false; }
+    stop(); return false;
+  }
+  function isInvalidated(error: unknown): boolean {
+    return /extension context invalidated/i.test(String(error));
+  }
+  // Chrome can throw before returning a Promise, so attach the handler inside an async boundary.
+  async function send(message: unknown): Promise<unknown> {
+    if (!contextReady()) return undefined;
+    try { return await chrome.runtime.sendMessage(message); }
+    catch (error) {
+      if (isInvalidated(error) || !contextReady()) { stop(); return undefined; }
+      throw error;
+    }
+  }
   function readCache(value: unknown) {
     const cache = value as SAFLookup.Stored | undefined;
     remote = new Map(Object.entries(cache?.version === 1 ? cache.items || {} : {}).filter(
@@ -34,7 +56,7 @@
   }
   function requestNearby() {
     window.clearTimeout(retryTimer);
-    if (!ready || settings.level === 0 || document.hidden) return;
+    if (!ready || !contextReady() || settings.level === 0 || document.hidden) return;
     const visibleEntries = [...nearby].filter(e => e.isConnected && entries.has(e));
     // Nearest cards are serviced first, independent of DOM/carousel order.
     visibleEntries.sort((a, b) => Math.abs(a.getBoundingClientRect().top) - Math.abs(b.getBoundingClientRect().top));
@@ -45,20 +67,23 @@
           resultFor(evidence.id) || requesting.has(evidence.id)) continue;
       const id = evidence.id;
       requesting.add(id);
-      void chrome.runtime.sendMessage({type: "SAF_LOOKUP", id}).then((result: unknown) => {
+      void send({type: "SAF_LOOKUP", id}).then((result: unknown) => {
+        if (!contextReady()) return;
         const reply = result as SAFLookup.Result | undefined;
         if (reply?.state === "unavailable" && reply.expiresAt <= reply.checkedAt) remote.delete(id);
         else remote.set(id, SAFLookup.fresh(result, Date.now()) ? result : SAFLookup.unavailable(Date.now(), "查詢未完成", 30000));
       }).catch(() => {
+        if (!contextReady()) return;
         remote.set(id, SAFLookup.unavailable(Date.now(), "查詢服務無法使用", 60000));
-      }).finally(() => { requesting.delete(id); render(); });
+      }).finally(() => { requesting.delete(id); if (contextReady()) render(); });
+      if (stopped) return;
     }
     // Recheck expiration without rescanning the document. Hidden tabs issue no requests.
     retryTimer = window.setTimeout(() => render(), 30000);
   }
   document.addEventListener("visibilitychange", () => {
     if (document.hidden) window.clearTimeout(retryTimer); else if (ready) render();
-  });
+  }, {signal: events.signal});
   const host = document.createElement("div");
   host.id = "saf-root";
   const shadow = host.attachShadow({mode: "open"});
@@ -94,7 +119,31 @@
   const list = shadow.querySelector<HTMLElement>("#list")!;
   const dialog = shadow.querySelector<HTMLDialogElement>("dialog")!;
   const allowButton = shadow.querySelector<HTMLButtonElement>("#allow")!;
+  function stop() {
+    if (stopped) return;
+    stopped = true; ready = false;
+    window.clearTimeout(timer); timer = 0;
+    window.clearTimeout(retryTimer); retryTimer = 0;
+    observer.disconnect(); visibility.disconnect(); events.abort();
+    if (dialog.open) dialog.close();
+    for (const element of entries.keys()) {
+      if (element === document.documentElement) continue;
+      SAF.syncMask(element, null);
+      element.classList.remove("saf-badge-positioned");
+      element.querySelector(".saf-badge")?.remove();
+    }
+    entries.clear(); effective.clear(); nearby.clear(); dirty.clear(); remote.clear(); requesting.clear();
+    // Keep one recovery notice, with no dead buttons or obsolete counts.
+    if (!host.isConnected) document.body.prepend(host);
+    host.style.display = ""; bar.hidden = false;
+    stat.textContent = "過濾已停止，請重新整理頁面。";
+    note.hidden = true; reveal.hidden = true; allowButton.disabled = true;
+    list.replaceChildren();
+    shadow.querySelector<HTMLElement>("#matches")!.hidden = true;
+    shadow.querySelector<HTMLElement>("#error")!.hidden = true;
+  }
   function report(e: unknown) {
+    if (isInvalidated(e) || !contextReady()) { stop(); return; }
     console.error("Steam AI Filter:", e);
     bar.hidden = false;
     const error = shadow.querySelector<HTMLElement>("#error")!;
@@ -115,6 +164,7 @@
     return true;
   }
   function openReason(e: SAF.Evidence) {
+    if (!contextReady()) return;
     currentDialog = e;
     shadow.querySelector("#dialog-title")!.textContent = e.title;
     shadow.querySelector("#reason")!.textContent = SAF.reason(e);
@@ -126,16 +176,18 @@
   }
   shadow.querySelector<HTMLButtonElement>("#close")!.onclick = () => dialog.close();
   allowButton.onclick = async () => {
-    if (!currentDialog) return;
+    if (!currentDialog || !contextReady()) return;
     allowButton.disabled = true;
     try {
       const latest = await SAF.getSettings();
+      if (!contextReady()) return;
       if (Object.hasOwn(latest.allow, currentDialog.id)) delete latest.allow[currentDialog.id];
       else latest.allow[currentDialog.id] = currentDialog.title;
       await chrome.storage.local.set({allow: latest.allow});
+      if (!contextReady()) return;
       settings.allow = latest.allow; render(); openReason(currentDialog);
     } catch (e) { report(e); }
-    finally { allowButton.disabled = false; }
+    finally { if (!stopped) allowButton.disabled = false; }
   };
   reveal.onclick = () => { revealing = !revealing; render(); };
   function watchCard(card: Element) {
@@ -148,22 +200,23 @@
       const evidence = effective.get(card);
       if (evidence) openReason(evidence);
     };
-    card.addEventListener("click", activate, true);
+    card.addEventListener("click", activate, {capture: true, signal: events.signal});
     card.addEventListener("auxclick", event => {
       if (card.classList.contains("saf-blocked")) { event.preventDefault(); event.stopImmediatePropagation(); }
-    }, true);
-    card.addEventListener("keydown", activate, true);
+    }, {capture: true, signal: events.signal});
+    card.addEventListener("keydown", activate, {capture: true, signal: events.signal});
   }
   // Stop Steam hover previews for covered cards, including inline hover handlers.
   for (const type of ["mouseover", "mouseenter", "pointerover", "pointerenter", "focusin"]) {
     document.addEventListener(type, event => {
       if ((event.target as Element)?.closest?.(".saf-blocked")) event.stopImmediatePropagation();
-    }, true);
+    }, {capture: true, signal: events.signal});
   }
   document.addEventListener("play", event => {
     if (event.target instanceof HTMLMediaElement && event.target.closest(".saf-blocked")) event.target.pause();
-  }, true);
+  }, {capture: true, signal: events.signal});
   function render() {
+    if (!contextReady()) return;
     let hidden = 0, matched = 0, unknown = 0, pending = 0, checked = 0, failed = 0;
     const candidates = new Map<string, SAF.Evidence>();
     effective = SAF.mergeEvidence(entries);
@@ -175,6 +228,7 @@
       }
     }
     requestNearby();
+    if (stopped) return;
     for (const [element, evidence] of effective) {
       const isCard = element !== document.documentElement;
       const match = Boolean(evidence.disclosure || evidence.tagMatch);
@@ -244,12 +298,12 @@
     if (signature !== previousStatus) {
       previousStatus = signature;
       // A closed popup has no receiver; that is an expected state, not a filter failure.
-      void chrome.runtime.sendMessage({type: "SAF_UPDATED", status}).catch(() => undefined);
+      void send({type: "SAF_UPDATED", status}).catch(() => undefined);
     }
   }
   function scan() {
     timer = 0;
-    if (!ready) return;
+    if (!ready || !contextReady()) return;
     appMatch = location.pathname.match(/^\/app\/(\d+)(?:\/|$)/);
     kind = SAF.pageKind(location.pathname);
     {
@@ -281,9 +335,10 @@
     }
     dirty.clear(); placeHost(); render();
   }
-  function schedule() { if (!timer) timer = window.setTimeout(scan, 100); }
-  window.addEventListener("popstate", schedule);
+  function schedule() { if (contextReady() && !timer) timer = window.setTimeout(scan, 100); }
+  window.addEventListener("popstate", schedule, {signal: events.signal});
   const observer = new MutationObserver(records => {
+    if (!contextReady()) return;
     let relevant = false;
     for (const record of records) {
       const el = record.target instanceof Element ? record.target : record.target.parentElement;
@@ -299,28 +354,40 @@
     }
     if (relevant) schedule();
   });
-  chrome.storage.onChanged.addListener((changes, area) => {
-    if (area !== "local") return;
-    if (changes.level) { settings.level = SAF.normalizeLevel(changes.level.newValue); revealing = false; }
-    if (changes.allow) settings.allow = SAF.cleanAllow(changes.allow.newValue);
-    if (changes.disclosureCache) readCache(changes.disclosureCache.newValue);
-    if (ready && (changes.level || changes.allow || changes.disclosureCache)) render();
-  });
-  chrome.runtime.onMessage.addListener((message, _sender, respond) => {
-    if (!message || !["SAF_STATUS", "SAF_REFRESH", "SAF_REVEAL"].includes(message.type)) return;
-    if (!ready) { respond(null); return; }
-    if (message.type === "SAF_REFRESH") {
-      SAF.getSettings().then(data => { settings = data; render(); respond(status); }).catch(e => { report(e); respond(null); });
-      return true;
-    }
-    if (message.type === "SAF_REVEAL") { revealing = !revealing; render(); }
-    respond(status);
-  });
-  void Promise.all([SAF.getSettings(), chrome.storage.local.get("disclosureCache")]).then(([data, cache]) => {
-    settings = data; readCache(cache.disclosureCache); ready = true; scan();
-    observer.observe(document.body, {
-      subtree: true, childList: true, characterData: true,
-      attributes: true, attributeFilter: ["data-ds-tagids", "data-ds-appid", "data-appid", "data-app-id", "data-ds-itemkey", "href", "alt", "src", "data-image-url"]
+  if (!contextReady()) return;
+  try {
+    chrome.storage.onChanged.addListener((changes, area) => {
+      if (area !== "local" || !contextReady()) return;
+      if (changes.level) { settings.level = SAF.normalizeLevel(changes.level.newValue); revealing = false; }
+      if (changes.allow) settings.allow = SAF.cleanAllow(changes.allow.newValue);
+      if (changes.disclosureCache) readCache(changes.disclosureCache.newValue);
+      if (ready && (changes.level || changes.allow || changes.disclosureCache)) render();
     });
-  }).catch(e => { placeHost(); report(e); });
+    chrome.runtime.onMessage.addListener((message, _sender, respond) => {
+      if (!contextReady()) return;
+      if (!message || !["SAF_STATUS", "SAF_REFRESH", "SAF_REVEAL"].includes(message.type)) return;
+      if (!ready) { respond(null); return; }
+      if (message.type === "SAF_REFRESH") {
+        SAF.getSettings().then(data => {
+          if (!contextReady()) return;
+          settings = data; render(); if (!stopped) respond(status);
+        }).catch(e => { report(e); if (!stopped) respond(null); });
+        return true;
+      }
+      if (message.type === "SAF_REVEAL") { revealing = !revealing; render(); }
+      if (!stopped) respond(status);
+    });
+  } catch (e) { report(e); return; }
+  void (async () => {
+    try {
+      const [data, cache] = await Promise.all([SAF.getSettings(), chrome.storage.local.get("disclosureCache")]);
+      if (!contextReady()) return;
+      settings = data; readCache(cache.disclosureCache); ready = true; scan();
+      if (stopped) return;
+      observer.observe(document.body, {
+        subtree: true, childList: true, characterData: true,
+        attributes: true, attributeFilter: ["data-ds-tagids", "data-ds-appid", "data-appid", "data-app-id", "data-ds-itemkey", "href", "alt", "src", "data-image-url"]
+      });
+    } catch (e) { placeHost(); report(e); }
+  })();
 })();

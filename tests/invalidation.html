@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="zh-Hant">
+<meta charset="utf-8">
+<title>Extension context invalidation regression</title>
+<link rel="stylesheet" href="/dist/content.css">
+<style>
+body { margin: 24px; background: #182738; color: #d6e4f1; font: 14px/1.5 system-ui; }
+.card { display: block; position: relative; width: 300px; min-height: 100px; background: #345064; color: inherit; margin: 16px 0; }
+.card img { width: 100%; height: 64px; }
+pre { white-space: pre-wrap; }
+</style>
+<main>
+  <a class="card" data-ds-appid="601" data-ds-tagids="[7926]" href="https://store.steampowered.com/app/601/">
+    <img alt="Known match" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E">
+    <span class="title">Known match</span>
+  </a>
+</main>
+<pre id="test-results"></pre>
+<script src="/tests/bridge.js"></script>
+<script src="/tests/invalidation-setup.js"></script>
+<script src="/dist/lookup.js"></script>
+<script src="/dist/core.js"></script>
+<script src="/dist/mask.js"></script>
+<script src="/dist/content.js"></script>
+<script src="/tests/invalidation.js"></script>
+</html>

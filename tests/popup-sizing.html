@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="zh-Hant">
+<meta charset="utf-8">
+<title>Popup intrinsic size regression</title>
+<style>
+body { margin: 24px; background: #eef2f5; color: #222435; font: 14px/1.5 system-ui; }
+iframe { display: block; width: 95px; height: 360px; border: 0; background: white; }
+pre { white-space: pre-wrap; }
+</style>
+<p>彈窗初始寬度 95px → 依內容測量</p>
+<iframe src="/preview-popup.html" title="彈窗寬度回歸"></iframe>
+<pre id="test-results"></pre>
+<script src="/tests/popup-sizing.js"></script>
+</html>
