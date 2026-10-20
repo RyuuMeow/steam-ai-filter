@@ -15,6 +15,7 @@
   let effective = new Map<Element, SAF.Evidence>();
   const watched = new WeakSet<Element>();
   const dirty = new Set<Element>();
+  const removalLayout = new SAF.RemovalLayout();
   const nearby = new Set<Element>();
   let remote = new Map<string, SAFLookup.Result>();
   const requesting = new Set<string>();
@@ -125,6 +126,7 @@
     window.clearTimeout(timer); timer = 0;
     window.clearTimeout(retryTimer); retryTimer = 0;
     observer.disconnect(); visibility.disconnect(); events.abort();
+    removalLayout.clear();
     if (dialog.open) dialog.close();
     for (const element of entries.keys()) {
       if (element === document.documentElement) continue;
@@ -219,6 +221,7 @@
     if (!contextReady()) return;
     let hidden = 0, matched = 0, unknown = 0, pending = 0, checked = 0, failed = 0;
     const candidates = new Map<string, SAF.Evidence>();
+    const removed: Element[] = [];
     effective = SAF.mergeEvidence(entries);
     {
       for (const [element, evidence] of effective) {
@@ -240,6 +243,7 @@
       if (result?.state === "unavailable") failed++;
       const hide = isCard && !revealing && SAF.shouldHide(evidence, settings.level, settings.allow);
       if (hide) hidden++;
+      if (hide && settings.presentation === "remove") removed.push(element);
       if (isCard) {
         watchCard(element);
         SAF.syncMask(element, hide ? evidence : null, settings.presentation);
@@ -271,6 +275,7 @@
         if (!showBadge) element.classList.remove("saf-badge-positioned");
       }
     }
+    removalLayout.sync(removed);
     const main = entries.get(document.documentElement);
     const mainMatched = Boolean(main?.disclosure || main?.tagMatch);
     status = {kind, total: entries.size, hidden, matched, unknown, pending, checked, failed, mainMatched, revealing, presentation: settings.presentation};

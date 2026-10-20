@@ -1,5 +1,16 @@
 .saf-positioned, .saf-badge-positioned { position: relative !important; }
 .saf-removed.saf-removed { display: none !important; }
+.saf-removed-wrapper.saf-removed-wrapper, .saf-empty-carousel.saf-empty-carousel { display: none !important; }
+.saf-compact-viewport.saf-compact-viewport { overflow-x: auto !important; overflow-y: hidden !important; scrollbar-width: thin; }
+.saf-compact-tray.saf-compact-tray {
+  width: 100% !important; min-width: 0 !important; transform: none !important;
+  display: flex !important; flex-direction: row !important; justify-content: flex-start !important;
+}
+.saf-compact-tray > .carousel__slide {
+  flex: 0 0 var(--saf-slide-width) !important; width: var(--saf-slide-width) !important;
+  min-width: 0 !important; float: none !important;
+}
+.saf-carousel-pagination.saf-carousel-pagination { display: none !important; }
 .saf-blocked { isolation: isolate; cursor: pointer !important; }
 .saf-blocked > :not(.saf-mask) { opacity: 0 !important; pointer-events: none !important; }
 .saf-blocked::before, .saf-blocked::after { visibility: hidden !important; }

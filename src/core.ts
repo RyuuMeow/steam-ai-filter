@@ -163,7 +163,7 @@ namespace SAF {
       let card = element, mediaCount = media;
       // Expand to the single-game artwork group. Stop at mixed-game shelves, page
       // roots or navigation so a recommendation can never cover its neighbours.
-      for (let parent = element.parentElement, depth = 0; parent && depth < 6; parent = parent.parentElement, depth++) {
+      for (let parent = element.parentElement, depth = 0; parent && depth < 12; parent = parent.parentElement, depth++) {
         if (parent.matches(boundary) || parent.closest(excluded)) break;
         const details = info(parent);
         if (details.ids.size !== 1 || !details.ids.has(id)) break;
@@ -173,7 +173,11 @@ namespace SAF {
           const source = m.getAttribute("data-image-url") || m.getAttribute("src") || m.getAttribute("poster") || m.getAttribute("style") || "";
           return source.match(/\/steam\/apps\/([1-9]\d{0,9})\//)?.[1] === id;
         });
-        if ((details.media > mediaCount && sameGameAssets) || directCardId(parent) === id) { card = parent; mediaCount = details.media; }
+        // Steam's expanded card contains trailers with separate movie IDs. The
+        // explicit game-card boundary is stronger evidence than media URL equality.
+        const wholeObject = parent.matches(".LibraryAssetExpandedDisplay, .carousel__slide");
+        if (wholeObject || (details.media > mediaCount && sameGameAssets) || directCardId(parent) === id) { card = parent; mediaCount = details.media; }
+        if (parent.matches(".carousel__slide")) break;
       }
       candidates.add(card);
     }
@@ -181,6 +185,13 @@ namespace SAF {
       for (let parent = card.parentElement; parent; parent = parent.parentElement) if (candidates.has(parent)) return false;
       return true;
     });
+  }
+  export function removalContainer(card: Element): Element {
+    if (!card.matches(".LibraryAssetExpandedDisplay")) return card;
+    const row = card.closest(".SaleSectionContainer");
+    // A section can also contain several games: only collapse a single expanded row.
+    return row && row.querySelectorAll(".LibraryAssetExpandedDisplay").length === 1
+      && !row.querySelector("nav, [role=navigation], h1, h2") && cardId(row) === cardId(card) ? row : card;
   }
   export function cardTitle(card: Element, id: string): string {
     return card.querySelector(".title, .app_name, .tab_item_title, .tab_item_name, .recommendation_title")?.textContent?.trim()

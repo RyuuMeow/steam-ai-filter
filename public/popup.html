@@ -18,14 +18,14 @@
           <div class="fill"></div>
           <div class="dots"><i></i><i></i><i></i><i></i></div>
         </div>
-        <input id="strength" type="range" min="0" max="3" step="1" value="1"
+        <input id="strength" type="range" min="0" max="3" step="1" value="1" disabled
           aria-label="AI 過濾等級" aria-valuetext="標示" aria-describedby="rule">
       </div>
       <div class="stops" aria-hidden="true"><span>關閉</span><span>標示</span><span>揭露</span><span>廣泛</span></div>
       <p id="rule">標示 AI 相關訊號，保留所有遊戲。</p>
       <div id="presentation" class="presentation" role="radiogroup" aria-label="命中卡片的處理方式" hidden>
-        <label><input type="radio" name="presentation" value="mask" checked><span>遮蔽</span></label>
-        <label><input type="radio" name="presentation" value="remove"><span>剔除</span></label>
+        <label><input type="radio" name="presentation" value="mask" checked disabled><span>遮蔽</span></label>
+        <label><input type="radio" name="presentation" value="remove" disabled><span>剔除</span></label>
       </div>
     </section>
     <div id="page-status" class="page-status" hidden>

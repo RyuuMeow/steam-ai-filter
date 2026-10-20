@@ -47,7 +47,18 @@ test('manifest is restricted and every referenced asset exists', () => {
   assert.ok(fs.existsSync('dist/'+m.background.service_worker));
   assert.deepEqual(m.content_scripts[0].matches,['https://store.steampowered.com/*']);
   assert.ok(m.content_scripts[0].js.includes('mask.js'));
+  assert.ok(m.content_scripts[0].js.includes('layout.js'));
   for(const f of [...m.content_scripts[0].js,...m.content_scripts[0].css,m.action.default_popup]) assert.ok(fs.existsSync('dist/'+f));
+});
+test('extension and toolbar use the supplied PNG icon sizes',()=>{
+  const m=JSON.parse(fs.readFileSync('dist/manifest.json','utf8'));
+  assert.deepEqual(m.icons,m.action.default_icon);
+  for(const size of [16,32,48,128]){
+    const image=fs.readFileSync('dist/'+m.icons[size]);
+    assert.equal(image.subarray(1,4).toString(),'PNG');
+    assert.equal(image.readUInt32BE(16),size);
+    assert.equal(image.readUInt32BE(20),size);
+  }
 });
 test('page labels never exclude any store route',()=>{
   assert.equal(S.pageKind('/'),'home');

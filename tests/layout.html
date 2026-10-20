@@ -1,0 +1,41 @@
+<!doctype html><html lang="zh-Hant">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Steam AI Filter · 完整卡片剔除</title>
+<link rel="stylesheet" href="/dist/content.css">
+<style>
+*{box-sizing:border-box}body{margin:0;background:#172b3c;color:#e7f0f8;font:14px/1.5 system-ui}main{max-width:1050px;margin:28px auto;padding:0 24px}
+header{display:flex;align-items:center;gap:16px}header img{width:48px;height:48px}h1{font-size:22px;margin:0}h2{font-size:17px;margin:18px 0 12px}
+a{color:inherit;text-decoration:none}.controls{display:flex;gap:10px;margin:20px 0}.controls button{padding:8px 16px;border:0;border-radius:6px;cursor:pointer;font:inherit}
+.SaleSectionContainer{display:grid;grid-template-columns:1fr;padding:0 8px 14px;background:#24384b}.LibraryAssetExpandedDisplay{display:flex}
+.expanded-content{display:flex;width:100%;min-height:170px;background:#304a60}.cover-column{flex:0 1 35%}.cover-column img{width:100%;height:160px;background:#537b8c}
+.details{flex:1;display:grid;grid-template-columns:1fr 1fr;padding:12px;gap:12px}.details img{width:100%;height:86px;background:#64878a}.details footer{grid-column:span 2}
+.SliderBody{position:relative}.carousel__slider{overflow:hidden;padding-bottom:20px}.carousel__slider-tray{display:flex;align-items:stretch;flex-direction:row;transition:transform .3s}
+.carousel__slide{position:relative;flex:0 1 auto}.carousel__inner-slide{height:144px}.Panel{width:100%}.ImpressionTrackedElement{padding:0 8px}
+.capsule{display:block;background:#345064}.capsule img{width:100%;height:100px;display:block;background:linear-gradient(120deg,#487083,#68948d)}.capsule span{display:block;padding:8px}
+.SliderBody>button{position:absolute;z-index:10;top:40px;width:32px;height:40px;border:0;border-radius:5px;background:#fff9;cursor:pointer}.CarouselBtnLeft{left:0}.CarouselBtnRight{right:0}
+.pagination{height:18px;background:#ffffff15}.untouched{margin-top:14px}pre{font:12px/1.6 monospace;white-space:pre-wrap}
+</style>
+<main>
+<header><img src="/dist/icons/icon48.png" alt="Steam AI Filter 圖示"><h1>完整卡片剔除與輪播靠齊</h1></header>
+<div class="controls"><button id="remove">剔除</button><button id="mask">遮蔽</button><button id="off">關閉</button></div>
+<h2>詳細遊戲列表</h2><div id="rows"></div>
+<h2>推薦輪播</h2>
+<div class="carousel" id="carousel">
+  <div class="SliderBody">
+    <button class="carousel__back-button CarouselBtnLeft" aria-label="上一個" disabled>‹</button>
+    <div class="carousel__slider" role="list" aria-label="遊戲輪播">
+      <div class="carousel__slider-tray-wrapper">
+        <div class="carousel__slider-tray carousel__slider-tray--horizontal" style="width:300%;transform:translateX(0%)"></div>
+      </div>
+    </div>
+    <button class="carousel__next-button CarouselBtnRight" aria-label="下一個">›</button>
+  </div>
+  <div class="pagination"><button class="carousel__back-button" aria-label="previous">‹</button><button class="carousel__next-button" aria-label="next">›</button></div>
+</div>
+<div id="unrelated"><h2>保留的頁面內容</h2><p>不同遊戲、導覽與區段標題不應被整批剔除。</p></div>
+<pre id="test-results"></pre>
+</main>
+<script src="/tests/bridge.js"></script><script src="/tests/layout-setup.js"></script>
+<script src="/dist/lookup.js"></script><script src="/dist/core.js"></script>
+<script src="/dist/mask.js"></script><script src="/dist/layout.js"></script><script src="/dist/content.js"></script>
+<script src="/tests/layout.js"></script></html>

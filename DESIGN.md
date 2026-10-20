@@ -17,15 +17,22 @@ v0.5 將命中條件與呈現方式分開：四檔規則不變，「揭露／廣
 - `src/background.ts`：Manifest V3 service worker，驗證訊息來源，連接查詢器、fetch 與本機儲存。
 - `src/content.ts`：在整個 Steam 商店網域執行，監聽 DOM 變動、更新標示、處理原因及例外。
 - `src/mask.ts`：遮罩與剔除呈現；儲存並恢復原來的無障礙屬性，阻止被覆蓋內容的互動。
+- `src/layout.ts`：整列外層收攏、已辨識 Steam 水平輪播的連續捲動與完整還原。
 - `src/popup.ts`：四檔 slider、遮蔽／剔除切換、設定儲存、與目前分頁交換狀態。
 - `public/`：manifest、樣式、彈窗 markup。
 - `tests/`：政策測試與瀏覽器 fixture，API 替身只供測試／預覽。
 
-Chrome 的 content scripts 依序載入 lookup.js、core.js、mask.js、content.js。資料保存在 chrome.storage.local，要求 storage 與 Steam 商店的主機權限；腳本注入與背景訊息驗證均涵蓋整個 store.steampowered.com，不再白名單頁面路徑。pageKind 只標示頁面類型，不控制是否掃描。lookup.js 在內容腳本中只使用快取驗證函式，實際 Resolver 在背景 worker 中運作，跨分頁共用佇列。彈窗可以清除查詢快取。
+Chrome 的 content scripts 依序載入 lookup.js、core.js、mask.js、layout.js、content.js。資料保存在 chrome.storage.local，要求 storage 與 Steam 商店的主機權限；腳本注入與背景訊息驗證均涵蓋整個 store.steampowered.com，不再白名單頁面路徑。pageKind 只標示頁面類型，不控制是否掃描。lookup.js 在內容腳本中只使用快取驗證函式，實際 Resolver 在背景 worker 中運作，跨分頁共用佇列。彈窗可以清除查詢快取。
 
 動態內容以 100ms 合併變更，搜尋卡片只重新抽取新增或標記為 dirty 的項目；被移除的卡片會從索引清除。插件 UI 放在 shadow root，避免它的更新反覆觸發頁面 observer。遮蔽採絕對定位的純色覆蓋層，原卡片子元素保留布局但變成透明及 inert。絕對定位輪播保留其 position，只有 static 卡片補上 relative。恢復時移除遮罩並還原 aria／inert，不覆寫 Steam 原本的 display。
 
-剔除使用專屬 class 的 `display:none !important` 將卡片移出版面，同時停止其媒體；不 detach Steam 管理的節點，以免破壞 React 的節點回收與後續還原。移除該 class 即可恢復站方樣式。掃描不排除隱藏元素，原節點仍留在索引與命中原因清單，所以關閉、暫時顯示、例外設定、App ID 變更、失效清理皆可還原。一般流式列表及自動網格自然收攏；固定高度的外部輪播容器不由插件重寫。切換不觸發額外資料查詢，也不新增權限。
+剔除使用專屬 class 的 `display:none !important` 將完整卡片移出版面，同時停止其媒體；不 detach Steam 管理的節點，以免破壞 React 的節點回收與後續還原。移除該 class 即可恢復站方樣式。掃描不排除隱藏元素，原節點仍留在索引與命中原因清單，所以關閉、暫時顯示、例外設定、App ID 變更、失效清理皆可還原。切換不新增權限或額外的查詢種類。
+
+v0.5.1 直接檢查使用者開啟的 Next Fest DOM 後加入兩種完整物件邊界：`LibraryAssetExpandedDisplay` 與 `carousel__slide`。前者包含說明、操作區以及使用不同 movie ID 的預告片；不能只靠所有媒體 App ID 相同來判斷。後者距 app 連結有七層外包裝，原六層擴張不足。仍要求容器內只有單一 app，並保留混合遊戲、導航與頁面根節點的防護。單一詳細列的 `SaleSectionContainer` 也收起，消除外層 padding。
+
+已剔除部分卡片的標準 Steam 水平輪播，保留原節點與原生百分比尺寸，覆蓋 tray 寬度與 transform，改成原生 overflow 捲動。卡片寬度由原生 tray 百分比乘 slide 百分比取得，保持 Steam 的欄數；ResizeObserver 與局部 style 監聽處理響應式更新。沿用左右箭頭，以可視寬度捲動，禁用狀態依剩餘範圍計算；原本依未過濾索引顯示的頁碼條暫時隱藏，以原生捲軸代替。全部命中時整條收起。切回遮蔽、暫時顯示、關閉或插件失效，會移除樣式、斷開監聽、還原按鈕及 tabindex，將控制交回 Steam。未知的輪播結構不套用此適配。
+
+使用者提供的圖示 ZIP 移入 `assets/` 保存原稿；manifest 的 icons 與 action.default_icon 共用 16／32／48／128px PNG，未改動圖像。
 
 內容腳本以 runtime.id 與明確的 invalidated 錯誤偵測失效。sendMessage 放在 async/try 內，同時捕捉立即拋出及 Promise 拒絕；storage 的初始化、例外寫入與設定更新也走相同的停止處理。停止狀態不可逆：斷開 DOM/可視區 observer、清除掃描與重試 timer、用 AbortController 移除頁面/卡片事件、關閉 dialog、還原遮罩與無障礙屬性、清空索引，最後只留一則刷新提示。進行中的回應先檢查狀態，不回填或重啟。未開啟 popup 所造成的「沒有接收端」仍是正常情況，不會停用過濾。
 
