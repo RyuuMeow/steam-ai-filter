@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Steam AI Filter</title>
+  <link rel="stylesheet" href="tokens.css">
+  <link rel="stylesheet" href="popup.css">
+  <script src="core.js" defer></script>
+  <script src="popup.js" defer></script>
+</head>
+<body>
+  <main>
+    <section class="filter-control" data-level="2" aria-labelledby="filter-title">
+      <h1 id="filter-title">AI 過濾</h1>
+      <div class="slider-shell">
+        <div class="track" aria-hidden="true">
+          <div class="fill"></div>
+          <div class="dots"><i></i><i></i><i></i><i></i></div>
+        </div>
+        <input id="strength" type="range" min="0" max="3" step="1" value="2" disabled
+          aria-label="AI 過濾等級" aria-valuetext="揭露" aria-describedby="rule">
+      </div>
+      <div class="stops" aria-hidden="true"><span>關閉</span><span>標示</span><span>揭露</span><span>廣泛</span></div>
+      <p id="rule"><span id="broad-warning" aria-hidden="true" hidden><svg viewBox="0 0 24 24" width="20" height="20"><path d="M10.3 3.8a2 2 0 0 1 3.4 0l9 15.3a1.7 1.7 0 0 1-1.5 2.5H2.8a1.7 1.7 0 0 1-1.5-2.5z" fill="#f3c342"/><path d="M12 8v6" stroke="#47380b" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="17.5" r="1" fill="#47380b"/></svg></span><span id="rule-text">遮蔽已披露使用 AI 的遊戲。</span></p>
+      <div id="presentation" class="presentation" role="radiogroup" aria-label="命中卡片的處理方式" hidden>
+        <label><input type="radio" name="presentation" value="mask" checked disabled><span>遮蔽</span></label>
+        <label><input type="radio" name="presentation" value="remove" disabled><span>剔除</span></label>
+      </div>
+      <div id="code-option" class="code-option" hidden>
+        <label class="toggle-row" for="accept-ai-code">
+          <span>接受 AI 程式碼</span>
+          <input id="accept-ai-code" type="checkbox" role="switch" aria-describedby="code-rule" checked disabled>
+        </label>
+        <p id="code-rule">僅放行明確只用於程式開發的揭露。</p>
+      </div>
+      <div id="ignore-option" class="code-option" hidden>
+        <label class="toggle-row" for="auto-ignore">
+          <span>自動不感興趣</span>
+          <input id="auto-ignore" type="checkbox" role="switch" aria-describedby="ignore-rule" disabled>
+        </label>
+        <p id="ignore-rule">將命中遊戲加入 Steam 忽略清單。</p>
+        <p id="ignore-status" role="status" hidden></p>
+      </div>
+      <div id="checked-option" class="code-option">
+        <label class="toggle-row" for="show-checked">
+          <span>顯示已檢查標記</span>
+          <input id="show-checked" type="checkbox" role="switch" checked disabled>
+        </label>
+      </div>
+    </section>
+    <div id="page-status" class="page-status" hidden>
+      <p id="status" role="status"></p>
+      <button id="reveal" class="text-button" hidden>暫時顯示</button>
+    </div>
+    <p id="error" role="alert" hidden></p>
+    <details id="management">
+      <summary>管理</summary>
+      <p id="coverage" hidden></p>
+      <button id="clear-cache" class="text-button">清除查詢快取</button>
+      <p id="cache-result" role="status" hidden></p>
+      <section id="exceptions" aria-labelledby="exceptions-title" hidden>
+        <h2 id="exceptions-title">永遠顯示 <span id="allow-count"></span></h2>
+        <ul id="allow-list"></ul>
+      </section>
+    </details>
+  </main>
+</body>
+</html>

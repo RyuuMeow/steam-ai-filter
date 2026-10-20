@@ -2,12 +2,19 @@
   "name": "steam-ai-filter",
   "version": "0.7.1",
   "private": true,
+  "description": "Chrome extension for filtering Steam store games by AI disclosure.",
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "build": "tsc && node scripts/build.mjs",
     "typecheck": "tsc --noEmit",
     "test": "npm run build && node --test tests/*.test.cjs",
     "dev": "node scripts/serve.mjs",
-    "check": "npm run typecheck && npm test"
+    "check": "npm run typecheck && npm test",
+    "package": "npm run build && node scripts/package.mjs",
+    "package:check": "node scripts/package.mjs --check",
+    "preview:package": "npm run build && node scripts/package-preview.mjs"
   },
   "devDependencies": {
     "@types/chrome": "^0.3.5",

@@ -1,3 +1,11 @@
 node_modules/
 dist/
 artifacts/
+.DS_Store
+Thumbs.db
+*.log
+.env
+.env.*
+!.env.example
+*.pem
+*.key

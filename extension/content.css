@@ -1,0 +1,56 @@
+.saf-positioned, .saf-badge-positioned { position: relative !important; }
+.saf-removed.saf-removed { display: none !important; }
+.saf-removed-wrapper.saf-removed-wrapper, .saf-empty-carousel.saf-empty-carousel { display: none !important; }
+.saf-compact-viewport.saf-compact-viewport { overflow-x: auto !important; overflow-y: hidden !important; scrollbar-width: thin; }
+.saf-compact-tray.saf-compact-tray {
+  width: 100% !important; min-width: 0 !important; transform: none !important;
+  display: flex !important; flex-direction: row !important; justify-content: flex-start !important;
+}
+.saf-compact-tray > .carousel__slide {
+  flex: 0 0 var(--saf-slide-width) !important; width: var(--saf-slide-width) !important;
+  min-width: 0 !important; float: none !important;
+}
+.saf-carousel-pagination.saf-carousel-pagination { display: none !important; }
+.saf-blocked { isolation: isolate; cursor: pointer !important; }
+.saf-blocked > :not(.saf-mask) { opacity: 0 !important; pointer-events: none !important; }
+.saf-blocked::before, .saf-blocked::after { visibility: hidden !important; }
+.saf-mask {
+  position: absolute !important; inset: 0 !important; z-index: 2147483646 !important;
+  display: flex !important; flex-direction: column !important; align-items: center !important; justify-content: center !important;
+  gap: 6px !important; padding: 8px !important; box-sizing: border-box !important;
+  background: #202e3b !important; color: #b8c9d8 !important; border-radius: inherit !important;
+  font: 14px/1.4 "Segoe UI", "Microsoft JhengHei", sans-serif !important;
+  text-align: center !important; white-space: normal !important; opacity: 1 !important; visibility: visible !important;
+}
+.saf-mask svg { width: 24px !important; height: 24px !important; flex: 0 0 24px !important; }
+.saf-mask-label { color: inherit !important; font: inherit !important; }
+.saf-blocked:focus-visible { outline: 2px solid #80d7ff !important; outline-offset: 3px !important; }
+.saf-home-badge { position: absolute !important; left: 8px; bottom: 8px; z-index: 5; }
+.saf-badge {
+  display: inline-block !important;
+  margin: 4px 0 0 !important; padding: 2px 6px !important;
+  border: 1px solid #80d7ff80 !important; border-radius: 4px !important;
+  background: #1b3349 !important; color: #d2efff !important;
+  font: 12px/1.5 "Segoe UI", "Microsoft JhengHei", sans-serif !important;
+  cursor: pointer !important; white-space: normal !important;
+}
+.saf-badge:focus-visible { outline: 2px solid #80d7ff !important; outline-offset: 2px !important; }
+.saf-checked {
+  position: absolute !important; top: 6px !important; right: 6px !important; z-index: 5 !important;
+  display: inline-block !important; padding: 2px 6px !important; border-radius: 4px !important;
+  background: #153e2f !important; color: #b5f1c9 !important; border: 1px solid #69cb9880 !important;
+  font: 12px/1.5 "Segoe UI", "Microsoft JhengHei", sans-serif !important;
+  white-space: nowrap !important; pointer-events: auto !important;
+}
+.search_result_row .saf-checked { right: auto !important; left: 4px !important; top: 4px !important; }
+.search_result_row:has(.saf-badge) { min-height: 72px; }
+.responsive_search_name_combined .search_name:has(.saf-badge) {
+  display: flex !important; align-items: center; gap: 8px;
+}
+.responsive_search_name_combined .search_name:has(.saf-badge) > .title {
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.responsive_search_name_combined .saf-badge {
+  flex-shrink: 0; max-width: 55%; margin: 0 !important;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap !important;
+}
