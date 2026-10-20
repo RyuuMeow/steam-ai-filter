@@ -14,10 +14,13 @@ v0.6 在撥塊下方加入一列原生 checkbox／role=switch「接受 AI 程式
 
 ## 邊界
 
+v0.7 將未設定的等級預設為揭露，顯示模式保持遮蔽；已儲存偏好不覆寫。新增預設關閉的「自動不感興趣」與預設開啟的「顯示已檢查標記」，使用相同原生 switch。廣泛模式保留深琥珀色誤擋提醒與黃色三角形，文字隨遮蔽／剔除切換。綠勾表示已取得正式披露資料，僅呈現在可見卡片；沒有資料、失敗與查詢中都不視為完成，tooltip 不宣稱「無 AI」。
+
 - `src/core.ts`：純判斷、頁面證據抽取、設定正規化。
 - `src/disclosure-keywords.ts`：集中維護程式詞、排他詞、非程式用途、含糊詞與完整否定句的本機字表。
 - `src/disclosure.ts`：僅程式用途的保守文字推斷，與 DOM／網路解耦。
 - `src/lookup.ts`：無 DOM 的披露解析、持久快取、請求合併、併發與退避；依賴可替換以供離線測試。
+- `src/ignore.ts`：可注入 HTTP／時鐘／儲存的帳號忽略佇列、結果確認、限速及失敗處理。只在明確開啟後操作。
 - `src/background.ts`：Manifest V3 service worker，驗證訊息來源，連接查詢器、fetch 與本機儲存。
 - `src/content.ts`：在整個 Steam 商店網域執行，監聽 DOM 變動、更新標示、處理原因及例外。
 - `src/mask.ts`：遮罩與剔除呈現；儲存並恢復原來的無障礙屬性，阻止被覆蓋內容的互動。
@@ -26,7 +29,7 @@ v0.6 在撥塊下方加入一列原生 checkbox／role=switch「接受 AI 程式
 - `public/`：manifest、樣式、彈窗 markup。
 - `tests/`：政策測試與瀏覽器 fixture，API 替身只供測試／預覽。
 
-Chrome 的 content scripts 依序載入 lookup.js、disclosure-keywords.js、disclosure.js、core.js、mask.js、layout.js、content.js。資料保存在 chrome.storage.local，要求 storage 與 Steam 商店的主機權限；腳本注入與背景訊息驗證均涵蓋整個 store.steampowered.com，不再白名單頁面路徑。pageKind 只標示頁面類型，不控制是否掃描。lookup.js 在內容腳本中只使用快取驗證函式，實際 Resolver 在背景 worker 中運作，跨分頁共用佇列。彈窗可以清除查詢快取。
+Chrome 的 content scripts 依序載入 lookup.js、disclosure-keywords.js、disclosure.js、core.js、mask.js、layout.js、content.js。資料保存在 chrome.storage.local，要求 storage、alarms 與 Steam 商店的主機權限；腳本注入與背景訊息驗證均涵蓋整個 store.steampowered.com，不再白名單頁面路徑。pageKind 只標示頁面類型，不控制是否掃描。lookup.js 在內容腳本中只使用快取驗證函式，實際 Resolver 在背景 worker 中運作，跨分頁共用佇列。彈窗可以清除查詢快取。
 
 程式碼例外只讀正式揭露原文。要求至少一個含明確排他語氣的程式句；每個其他句子須仍屬程式用途，或是可完整解析的非 AI／人工製作素材聲明。非程式用途、即時生成、含糊表述、無法理解的句子或已到 2000 字元截斷上限，一律不推定為僅程式。否定句擷取素材清單後必須完整消耗，避免「沒有 AI 美術，但有 AI 音樂」被整段誤當成否定。字表支援英、繁中、簡中有限寫法，未知語意保留原過濾結果。
 
@@ -59,6 +62,14 @@ v0.4 修正 v0.3 排除 sale 等路徑的設計，以及匿名查詢被年齡驗
 有意採保守讀取：不猜測封面是否為 AI、不掃描評論或一般描述中的「AI」、不將未揭露推定為無 AI。揭露區塊必須具有符合的正式標題，因為成人內容與 AI 揭露可能共用 HTML ID。
 
 ## 實際觀察（2026-10-20）
+
+v0.7 在既有登入分頁觀察到 `.trailercarousel`：同一款 app 的封面被舊版加上 `saf-removed`，但父層影片、文字與安裝區仍可見。新增這個語意邊界後，單一 App ID 的整個預告片區塊都納入處理；多款遊戲或導覽邊界仍停止向上擴張，節點重用時依新 App ID 還原及重判。
+
+自動忽略獨立於查詢 Resolver，由背景 worker 的單一序列化佇列處理。新增 `alarms` 權限讓 MV3 worker 休眠後仍可喚醒；先儲存下一次可操作時間再連線，重啟不造成突發請求，重複偵測也不持續延後同一個 alarm。queue 最多 200 筆／15 分鐘，done 最多 5000 筆且不淘汰，避免重新忽略使用者手動復原的遊戲。設定與較新的快取於送出前再次核對；content 亦傳送已不命中的更新以取消較早排入的項目。關閉或僅標示會清掉待辦，但不自動撤回已完成的帳號變更。
+
+實作依據為 Steam 公開的 [dynamicstore.js](https://store.fastly.steamstatic.com/public/javascript/dynamicstore.js)：`ModifyIgnoredApp` 將 `sessionid`、`appid`、`remove=0` POST 至固定的 `https://store.steampowered.com/recommended/ignorerecommendation/`，`rgIgnoredApps` 由 `/dynamicstore/userdata/?id=...` 取得。本插件每次操作先從 Steam 首頁解析 `g_AccountID`／`g_sessionID`，核對綁定帳號，先確認未忽略，再送出並回讀驗證。session 僅在函式內保留，無訊息傳遞、持久儲存或日誌。所有 HTTP 都是固定 Steam origin、credentials include、redirect error、12 秒逾時；不執行下載的程式碼。
+
+只有自身 popup 可開啟自動忽略，候選訊息必須來自自身 extension 的 Steam 內容腳本。預設 false，enable 必須成功讀到已登入帳號。帳號變更、登入失效與協定不相容會停下，429／503 至少等 15 分鐘且遵守較長 Retry-After；一般失敗 2／10 分鐘後重試，第三次停止。重試先回讀 Steam 清單確認未知的上次結果。query 與 ignore 的限流時間互相遵守。未實際向使用者帳號送出測試寫入，HTTP／登入／瀏覽器 API 均另有合成測試。
 
 - Steam 搜尋：每款卡片有 `data-ds-appid` 與部分 `data-ds-tagids`。側欄的 `data-value="7926"` 對應 Artificial Intelligence，但側欄不作為個別遊戲證據。
 - 詳情頁：`.glance_tags[data-appid] .app_tag` 屬於該遊戲。

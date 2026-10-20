@@ -9,7 +9,7 @@ namespace SAF {
     disclosure: string | null;
     parseIssue: boolean;
   }
-  export interface Settings { level: Level; presentation: Presentation; acceptAICode: boolean; allow: Record<string, string> }
+  export interface Settings { level: Level; presentation: Presentation; acceptAICode: boolean; autoIgnore: boolean; showChecked: boolean; allow: Record<string, string> }
   export type PageKind = "home" | "search" | "app" | "store";
   export interface Status {
     kind: PageKind;
@@ -28,11 +28,11 @@ namespace SAF {
     {name: "關閉", description: "保留 Steam 原本的顯示方式。"},
     {name: "標示", description: "標示 AI 相關訊號，保留所有遊戲。"},
     {name: "揭露", description: "遮蔽已披露使用 AI 的遊戲。"},
-    {name: "廣泛", description: "遮蔽 AI 揭露與人工智慧標籤。\n標籤也可能只是題材。"}
+    {name: "廣泛", description: "廣泛可能會遮蔽非 AI 生成內容。"}
   ] as const;
   export function normalizeLevel(value: unknown): Level {
     return typeof value === "number" && Number.isInteger(value) && value >= 0 && value <= 3
-      ? value as Level : 1;
+      ? value as Level : 2;
   }
   export function normalizePresentation(value: unknown): Presentation {
     return value === "remove" ? "remove" : "mask";
@@ -179,9 +179,9 @@ namespace SAF {
         });
         // Steam's expanded card contains trailers with separate movie IDs. The
         // explicit game-card boundary is stronger evidence than media URL equality.
-        const wholeObject = parent.matches(".LibraryAssetExpandedDisplay, .carousel__slide");
+        const wholeObject = parent.matches(".LibraryAssetExpandedDisplay, .carousel__slide, .trailercarousel");
         if (wholeObject || (details.media > mediaCount && sameGameAssets) || directCardId(parent) === id) { card = parent; mediaCount = details.media; }
-        if (parent.matches(".carousel__slide")) break;
+        if (parent.matches(".carousel__slide, .trailercarousel")) break;
       }
       candidates.add(card);
     }
@@ -213,8 +213,9 @@ namespace SAF {
     return new Map(all.map(([el, e]) => [el, {...byId.get(e.id)!, title: e.title}]));
   }
   export async function getSettings(): Promise<Settings> {
-    const data = await chrome.storage.local.get(["level", "presentation", "acceptAICode", "allow"]);
+    const data = await chrome.storage.local.get(["level", "presentation", "acceptAICode", "autoIgnore", "showChecked", "allow"]);
     return {level: normalizeLevel(data.level), presentation: normalizePresentation(data.presentation),
-      acceptAICode: normalizeAcceptAICode(data.acceptAICode), allow: cleanAllow(data.allow)};
+      acceptAICode: normalizeAcceptAICode(data.acceptAICode), autoIgnore: data.autoIgnore === true,
+      showChecked: data.showChecked !== false, allow: cleanAllow(data.allow)};
   }
 }

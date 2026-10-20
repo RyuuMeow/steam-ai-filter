@@ -146,14 +146,15 @@ test('background entrypoint validates senders and supports only fixed app IDs', 
   let listener,change,requests=0;
   const storage={level:2,allow:{}};
   const worker=vm.createContext({
-    setTimeout,clearTimeout,AbortController,URL,console,
+    setTimeout,clearTimeout,AbortController,AbortSignal,URL,URLSearchParams,structuredClone,console,
     fetch:async url=>{requests++;return response(html(url.match(/app\/(\d+)/)[1],'Yes'));},
     chrome:{
       runtime:{id:'extension',getURL:path=>'chrome-extension://extension/'+path,onMessage:{addListener:fn=>listener=fn}},
+      alarms:{get:async()=>undefined,create:async()=>{},clear:async()=>true,onAlarm:{addListener:()=>{}}},
       storage:{local:{get:async()=>storage,set:async values=>Object.assign(storage,values)},onChanged:{addListener:fn=>change=fn}}
     }
   });
-  worker.importScripts=()=>vm.runInContext(fs.readFileSync('dist/lookup.js','utf8'),worker);
+  worker.importScripts=(...files)=>files.forEach(file=>vm.runInContext(fs.readFileSync('dist/'+file,'utf8'),worker));
   vm.runInContext(fs.readFileSync('dist/background.js','utf8'),worker);
   assert.equal(listener({type:'SAF_LOOKUP',id:'42'},{id:'other',url:'https://store.steampowered.com/'},()=>{}),undefined);
   assert.equal(listener({type:'SAF_LOOKUP',id:'42'},{id:'extension',url:'https://evil.example/'},()=>{}),undefined);

@@ -35,6 +35,14 @@
   cursor: pointer !important; white-space: normal !important;
 }
 .saf-badge:focus-visible { outline: 2px solid #80d7ff !important; outline-offset: 2px !important; }
+.saf-checked {
+  position: absolute !important; top: 6px !important; right: 6px !important; z-index: 5 !important;
+  display: inline-block !important; padding: 2px 6px !important; border-radius: 4px !important;
+  background: #153e2f !important; color: #b5f1c9 !important; border: 1px solid #69cb9880 !important;
+  font: 12px/1.5 "Segoe UI", "Microsoft JhengHei", sans-serif !important;
+  white-space: nowrap !important; pointer-events: auto !important;
+}
+.search_result_row .saf-checked { right: auto !important; left: 4px !important; top: 4px !important; }
 .search_result_row:has(.saf-badge) { min-height: 72px; }
 .responsive_search_name_combined .search_name:has(.saf-badge) {
   display: flex !important; align-items: center; gap: 8px;

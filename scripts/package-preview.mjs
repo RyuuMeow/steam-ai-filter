@@ -8,17 +8,20 @@ for(const name of ['tokens','popup'])popup=popup.replace(`<link rel="stylesheet"
 for(const name of ['core','popup'])popup=popup.replace(`<script src="${name}.js" defer></script>`,'');
 popup=popup.replace('</body>',script(await read('dist/core.js'))+script(await read('dist/popup.js'))+'</body>');
 await mkdir('artifacts',{recursive:true});
-for (const mode of ['home','search']) {
-  let page=await read(mode==='home'?'tests/home.html':'tests/fixture.html');
+for (const mode of ['automation','home','search']) {
+  let page=await read(mode==='automation'?'tests/automation.html':mode==='home'?'tests/home.html':'tests/fixture.html');
   page=page.replace('<link rel="stylesheet" href="/dist/content.css">',`<style>${await read('dist/content.css')}</style>`);
   page=page.replace('src="/preview-popup.html"',`srcdoc="${escape(popup)}"`);
-  const files=mode==='home'
+  page=page.replace('src="/dist/icons/icon32.png"',`src="data:image/png;base64,${(await readFile('dist/icons/icon32.png')).toString('base64')}"`);
+  const files=mode==='automation'
+    ? ['tests/bridge','dist/lookup','dist/disclosure-keywords','dist/disclosure','dist/core','dist/ignore','tests/automation-setup','dist/mask','dist/layout','dist/content','tests/automation']
+    : mode==='home'
     ? ['tests/bridge','tests/home-setup','dist/lookup','dist/disclosure-keywords','dist/disclosure','dist/core','dist/mask','dist/layout','dist/content','tests/home']
     : ['tests/bridge','dist/lookup','dist/disclosure-keywords','dist/disclosure','dist/core','dist/mask','dist/layout','dist/content','tests/fixture'];
   for(const name of files){
     let js=await read(`${name}.js`);
     page=page.replace(`<script src="/${name}.js"></script>`,script(js));
   }
-  await writeFile(`artifacts/${mode==='home'?'preview':'search-preview'}.html`,page);
+  await writeFile(`artifacts/${mode==='automation'?'preview':mode==='home'?'home-preview':'search-preview'}.html`,page);
 }
-console.log('Created standalone home and search previews in artifacts/.');
+console.log('Created standalone current, home and search previews in artifacts/.');

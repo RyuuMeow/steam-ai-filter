@@ -1,17 +1,24 @@
 (() => {
   const input = document.querySelector<HTMLInputElement>("#strength")!;
   const control = document.querySelector<HTMLElement>(".filter-control")!;
-  const rule = document.querySelector<HTMLElement>("#rule")!;
+  const rule = document.querySelector<HTMLElement>("#rule-text")!;
+  const broadWarning = document.querySelector<HTMLElement>("#broad-warning")!;
   const presentationControl = document.querySelector<HTMLElement>("#presentation")!;
   const presentations = Array.from(document.querySelectorAll<HTMLInputElement>('input[name="presentation"]'));
   const codeOption = document.querySelector<HTMLElement>("#code-option")!;
   const acceptCode = document.querySelector<HTMLInputElement>("#accept-ai-code")!;
+  const ignoreOption = document.querySelector<HTMLElement>("#ignore-option")!;
+  const autoIgnore = document.querySelector<HTMLInputElement>("#auto-ignore")!;
+  const checkedOption = document.querySelector<HTMLElement>("#checked-option")!;
+  const showChecked = document.querySelector<HTMLInputElement>("#show-checked")!;
+  const ignoreStatus = document.querySelector<HTMLElement>("#ignore-status")!;
   const pageStatus = document.querySelector<HTMLElement>("#page-status")!;
   const status = document.querySelector<HTMLElement>("#status")!;
   const coverage = document.querySelector<HTMLElement>("#coverage")!;
   const reveal = document.querySelector<HTMLButtonElement>("#reveal")!;
   const error = document.querySelector<HTMLElement>("#error")!;
-  let settings: SAF.Settings = {level: 1, presentation: "mask", acceptAICode: true, allow: {}};
+  let settings: SAF.Settings = {level: 2, presentation: "mask", acceptAICode: true, autoIgnore: false, showChecked: true, allow: {}};
+  let ignoreState: Partial<SAFIgnore.State> = {};
   let tabId: number | undefined;
   let isStoreTab = false;
   let writeQueue = Promise.resolve();
@@ -26,14 +33,31 @@
     control.style.setProperty("--fraction", String(level / 3));
     input.value = String(level);
     rule.textContent = SAF.levels[level].description.replace("遮蔽", settings.presentation === "remove" ? "剔除" : "遮蔽");
+    broadWarning.hidden = level !== 3;
     presentationControl.hidden = level < 2;
     codeOption.hidden = level < 2;
     acceptCode.checked = settings.acceptAICode;
+    ignoreOption.hidden = level < 2;
+    checkedOption.hidden = level === 0;
+    autoIgnore.checked = settings.autoIgnore;
+    showChecked.checked = settings.showChecked;
+    paintIgnore();
     for (const radio of presentations) radio.checked = radio.value === settings.presentation;
     input.setAttribute("aria-valuetext", SAF.levels[level].name);
     if (changed) {
       control.classList.remove("sweep");
       requestAnimationFrame(() => control.classList.add("sweep"));
+    }
+  }
+  function paintIgnore() {
+    ignoreStatus.hidden = !settings.autoIgnore;
+    if (ignoreState.paused) ignoreStatus.textContent = ignoreState.paused;
+    else if (settings.level < 2) ignoreStatus.textContent = "自動不感興趣已隨過濾暫停。";
+    else if ((ignoreState.cooldownUntil || 0) > Date.now()) {
+      ignoreStatus.textContent = `Steam 限流，${new Date(ignoreState.cooldownUntil!).toLocaleTimeString([], {hour: "2-digit", minute: "2-digit"})} 後重試。`;
+    } else {
+      const pending = ignoreState.queue?.length || 0, done = Object.keys(ignoreState.done || {}).length;
+      ignoreStatus.textContent = `待忽略 ${pending} 款 · 已確認忽略 ${done} 款${ignoreState.last ? `\n${ignoreState.last}` : ""}`;
     }
   }
   function renderAllow() {
@@ -83,7 +107,7 @@
       reveal.hidden = true; coverage.hidden = true;
     }
   }
-  function save(update: Partial<Pick<SAF.Settings, "level" | "presentation" | "acceptAICode">>) {
+  function save(update: Partial<Pick<SAF.Settings, "level" | "presentation" | "acceptAICode" | "showChecked">>) {
     writeQueue = writeQueue.then(async () => {
       await chrome.storage.local.set(update);
       Object.assign(settings, update); error.hidden = true; paint(settings.level);
@@ -101,6 +125,27 @@
     if (radio.checked) save({presentation: SAF.normalizePresentation(radio.value)});
   });
   acceptCode.addEventListener("change", () => save({acceptAICode: acceptCode.checked}));
+  showChecked.addEventListener("change", () => save({showChecked: showChecked.checked}));
+  autoIgnore.addEventListener("change", () => {
+    const enabled = autoIgnore.checked;
+    autoIgnore.disabled = true;
+    writeQueue = writeQueue.then(async () => {
+      if (enabled) {
+        const result = await chrome.runtime.sendMessage({type: "SAF_IGNORE_ENABLE"});
+        if (!result?.ok) throw new Error(result?.issue || "無法開啟自動不感興趣。");
+      } else await chrome.storage.local.set({autoIgnore: false});
+      settings.autoIgnore = enabled;
+      await chrome.storage.local.set({ignoreError: ""});
+      error.hidden = true; paint(settings.level);
+      if (tabId !== undefined) {
+        try { await chrome.tabs.sendMessage(tabId, {type: "SAF_REFRESH"}); } catch { /* refresh reports disconnected pages */ }
+      }
+      await refresh();
+    }).catch(e => {
+      paint(settings.level); error.hidden = false;
+      error.textContent = e instanceof Error ? e.message : "設定未能儲存，請再試一次。";
+    }).finally(() => { autoIgnore.disabled = false; });
+  });
   reveal.onclick = async () => {
     if (tabId === undefined) return;
     try { await chrome.tabs.sendMessage(tabId, {type: "SAF_REVEAL"}); await refresh(); }
@@ -141,18 +186,28 @@
       settings.acceptAICode = SAF.normalizeAcceptAICode(changes.acceptAICode.newValue);
       paint(settings.level); void refresh();
     }
+    if (changes.autoIgnore) { settings.autoIgnore = changes.autoIgnore.newValue === true; paint(settings.level); }
+    if (changes.showChecked) { settings.showChecked = changes.showChecked.newValue !== false; paint(settings.level); }
+    if (changes.ignoreState) { ignoreState = changes.ignoreState.newValue || {}; paintIgnore(); }
+    if (typeof changes.ignoreError?.newValue === "string" && changes.ignoreError.newValue) { error.hidden = false; error.textContent = changes.ignoreError.newValue; }
   });
   input.disabled = true;
   for (const radio of presentations) radio.disabled = true;
   acceptCode.disabled = true;
+  autoIgnore.disabled = true; showChecked.disabled = true;
   void (async () => {
     try {
-      settings = await SAF.getSettings(); paint(settings.level); renderAllow();
+      settings = await SAF.getSettings();
+      const stored = await chrome.storage.local.get(["ignoreState", "ignoreError"]);
+      ignoreState = stored.ignoreState || {};
+      paint(settings.level); renderAllow();
+      if (typeof stored.ignoreError === "string" && stored.ignoreError) { error.hidden = false; error.textContent = stored.ignoreError; }
       const [tab] = await chrome.tabs.query({active: true, currentWindow: true});
       isStoreTab = Boolean(tab?.url?.startsWith("https://store.steampowered.com/"));
       tabId = tab?.id; await refresh(); input.disabled = false;
       for (const radio of presentations) radio.disabled = false;
       acceptCode.disabled = false;
+      autoIgnore.disabled = false; showChecked.disabled = false;
     } catch (e) { report(e); }
   })();
 })();

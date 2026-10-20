@@ -17,7 +17,7 @@ test('allowlist wins over every match and level', () => {
   for (const level of [0,1,2,3]) assert.equal(S.shouldHide(evidence({disclosure:'yes',tagMatch:true}), level, {'42':'Test'}), false);
 });
 test('invalid storage values do not activate broad filtering', () => {
-  for (const v of [-1,4,NaN,undefined,null,'3',1.5]) assert.equal(S.normalizeLevel(v), 1);
+  for (const v of [-1,4,NaN,undefined,null,'3',1.5]) assert.equal(S.normalizeLevel(v), 2);
   assert.equal(S.normalizeLevel(0),0);
   assert.deepEqual(Object.keys(S.cleanAllow({'42':'Valid','__proto__':'no',abc:'no',43:5})),['42']);
 });
@@ -42,7 +42,7 @@ test('AI disclosure headings are separated from mature-content descriptors', () 
 test('manifest is restricted and every referenced asset exists', () => {
   const m=JSON.parse(fs.readFileSync('dist/manifest.json','utf8'));
   assert.equal(m.manifest_version,3);
-  assert.deepEqual(m.permissions,['storage']);
+  assert.deepEqual(m.permissions,['storage','alarms']);
   assert.deepEqual(m.host_permissions,['https://store.steampowered.com/*']);
   assert.ok(fs.existsSync('dist/'+m.background.service_worker));
   assert.deepEqual(m.content_scripts[0].matches,['https://store.steampowered.com/*']);

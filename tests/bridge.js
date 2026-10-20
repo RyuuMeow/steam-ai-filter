@@ -22,6 +22,11 @@
       id:'fixture-extension',
       onMessage:{addListener:fn=>bridge.messages.push(fn)},
       sendMessage:async message=>{
+        if(message.type==='SAF_IGNORE_ENABLE') return owner.testIgnore ? owner.testIgnore.enable() : {ok:false,issue:'此離線預覽不會修改 Steam 帳號。'};
+        if(message.type==='SAF_IGNORE_CANDIDATES') {
+          if(owner.testIgnore) await owner.testIgnore.enqueue(message.items);
+          return {ok:true};
+        }
         if(message.type==='SAF_LOOKUP') return owner.testLookup ? owner.testLookup(message.id) :
           {state:'unavailable',disclosure:null,checkedAt:Date.now(),expiresAt:Date.now()+300000,issue:'離線預覽'};
         if(message.type==='SAF_CLEAR_CACHE') {

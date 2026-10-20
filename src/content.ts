@@ -2,7 +2,7 @@
   let appMatch = location.pathname.match(/^\/app\/(\d+)(?:\/|$)/);
   let kind = SAF.pageKind(location.pathname);
   if (document.getElementById("saf-root")) return;
-  let settings: SAF.Settings = {level: 1, presentation: "mask", acceptAICode: true, allow: {}};
+  let settings: SAF.Settings = {level: 2, presentation: "mask", acceptAICode: true, autoIgnore: false, showChecked: true, allow: {}};
   let revealing = false;
   let ready = false;
   let stopped = false;
@@ -10,6 +10,8 @@
   let timer = 0;
   let currentDialog: SAF.Evidence | null = null;
   let previousStatus = "";
+  let ignoreSignature = "";
+  let ignoreSentAt = 0;
   let status: SAF.Status = {kind, total: 0, hidden: 0, matched: 0, unknown: 0, revealing, presentation: settings.presentation};
   const entries = new Map<Element, SAF.Evidence>();
   let effective = new Map<Element, SAF.Evidence>();
@@ -133,6 +135,7 @@
       SAF.syncMask(element, null);
       element.classList.remove("saf-badge-positioned");
       element.querySelector(".saf-badge")?.remove();
+      element.querySelector(".saf-checked")?.remove();
     }
     entries.clear(); effective.clear(); nearby.clear(); dirty.clear(); remote.clear(); requesting.clear();
     // Keep one recovery notice, with no dead buttons or obsolete counts.
@@ -226,6 +229,7 @@
     let hidden = 0, matched = 0, unknown = 0, pending = 0, checked = 0, failed = 0;
     const candidates = new Map<string, SAF.Evidence>();
     const removed: Element[] = [];
+    const ignoreItems = new Map<string, SAF.Evidence>();
     effective = SAF.mergeEvidence(entries);
     {
       for (const [element, evidence] of effective) {
@@ -246,6 +250,8 @@
       if (requesting.has(evidence.id)) pending++;
       if (result?.state === "unavailable") failed++;
       const hide = isCard && !revealing && SAF.shouldHide(evidence, settings.level, settings.allow, settings.acceptAICode);
+      // Include newly accepted evidence too, so a queued older match can be cancelled.
+      if (settings.autoIgnore) ignoreItems.set(evidence.id, evidence);
       if (hide) hidden++;
       if (hide && settings.presentation === "remove") removed.push(element);
       if (isCard) {
@@ -274,11 +280,35 @@
             (element.querySelector(".search_name") || element).append(badge);
           }
         }
+        const checked = element.querySelector<HTMLElement>(".saf-checked");
+        const hasResult = Boolean(evidence.disclosure) || result?.state === "not-found";
+        const showCheck = settings.level !== 0 && settings.showChecked && hasResult && !hide;
+        if (!showCheck) checked?.remove();
+        else if (!checked) {
+          const check = document.createElement("span");
+          check.className = "saf-checked";
+          check.textContent = "✓ 已檢查";
+          check.title = evidence.disclosure ? "已取得 AI 使用揭露；綠勾表示查詢完成。" : "已檢查商品頁，未找到 AI 揭露；不代表沒有使用 AI。";
+          if (getComputedStyle(element).position === "static") element.classList.add("saf-badge-positioned");
+          element.append(check);
+        } else {
+          checked.title = evidence.disclosure ? "已取得 AI 使用揭露；綠勾表示查詢完成。" : "已檢查商品頁，未找到 AI 揭露；不代表沒有使用 AI。";
+        }
         // Include any newly inserted badge in the mask's accessibility suppression.
         if (hide && settings.presentation === "mask") SAF.syncMask(element, evidence);
-        if (!showBadge) element.classList.remove("saf-badge-positioned");
+        if (!showBadge && !showCheck) element.classList.remove("saf-badge-positioned");
       }
     }
+    if (settings.autoIgnore && settings.level >= 2 && !document.hidden) {
+      const items = [...ignoreItems.values()].slice(0, 1000);
+      const signature = JSON.stringify({items, level: settings.level, acceptAICode: settings.acceptAICode, allow: settings.allow});
+      if (signature !== ignoreSignature || Date.now() - ignoreSentAt >= 30000) {
+        ignoreSignature = signature; ignoreSentAt = Date.now();
+        void send({type: "SAF_IGNORE_CANDIDATES", items}).then(result => {
+          if (!(result as {ok?: boolean})?.ok) ignoreSignature = "";
+        }).catch(() => { ignoreSignature = ""; });
+      }
+    } else ignoreSignature = "";
     removalLayout.sync(removed);
     const main = entries.get(document.documentElement);
     const mainMatched = Boolean(main?.disclosure || main?.tagMatch);
@@ -325,6 +355,7 @@
         if (!cards.has(element)) {
           SAF.syncMask(element, null); element.classList.remove("saf-badge-positioned");
           element.querySelector(".saf-badge")?.remove(); entries.delete(element);
+          element.querySelector(".saf-checked")?.remove();
           visibility.unobserve(element); nearby.delete(element);
         }
       }
@@ -333,6 +364,7 @@
         const id = SAF.cardId(card);
         if (!id || !/^\d+$/.test(id)) {
           SAF.syncMask(card, null); card.querySelector(".saf-badge")?.remove();
+          card.querySelector(".saf-checked")?.remove();
           entries.delete(card); continue; // bundles and packages aren't a single game
         }
         const title = SAF.cardTitle(card, id);
@@ -354,10 +386,10 @@
     let relevant = false;
     for (const record of records) {
       const el = record.target instanceof Element ? record.target : record.target.parentElement;
-      if (!el || el.closest("#saf-root, .saf-badge, .saf-mask")) continue;
+      if (!el || el.closest("#saf-root, .saf-badge, .saf-checked, .saf-mask")) continue;
       if (record.type === "childList") {
         const nodes = [...record.addedNodes, ...record.removedNodes];
-        if (nodes.length && nodes.every(n => n instanceof Element && (n.id === "saf-root" || n.matches(".saf-badge, .saf-mask")))) continue;
+        if (nodes.length && nodes.every(n => n instanceof Element && (n.id === "saf-root" || n.matches(".saf-badge, .saf-checked, .saf-mask")))) continue;
       }
       relevant = true;
       for (let card: Element | null = el; card; card = card.parentElement) {
@@ -373,9 +405,11 @@
       if (changes.level) { settings.level = SAF.normalizeLevel(changes.level.newValue); revealing = false; }
       if (changes.presentation) { settings.presentation = SAF.normalizePresentation(changes.presentation.newValue); revealing = false; }
       if (changes.acceptAICode) { settings.acceptAICode = SAF.normalizeAcceptAICode(changes.acceptAICode.newValue); revealing = false; }
+      if (changes.autoIgnore) { settings.autoIgnore = changes.autoIgnore.newValue === true; ignoreSignature = ""; }
+      if (changes.showChecked) settings.showChecked = changes.showChecked.newValue !== false;
       if (changes.allow) settings.allow = SAF.cleanAllow(changes.allow.newValue);
       if (changes.disclosureCache) readCache(changes.disclosureCache.newValue);
-      if (ready && (changes.level || changes.presentation || changes.acceptAICode || changes.allow || changes.disclosureCache)) {
+      if (ready && (changes.level || changes.presentation || changes.acceptAICode || changes.autoIgnore || changes.showChecked || changes.allow || changes.disclosureCache)) {
         render();
         if (dialog.open && currentDialog) openReason(currentDialog);
       }

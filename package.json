@@ -1,6 +1,6 @@
 {
   "name": "steam-ai-filter",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "private": true,
   "scripts": {
     "build": "tsc && node scripts/build.mjs",
