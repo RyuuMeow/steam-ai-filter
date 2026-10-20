@@ -10,9 +10,13 @@ v0.4.2 將 html/body 的 width 與 min-width 明確設為 320px，移除 max-wid
 
 v0.5 將命中條件與呈現方式分開：四檔規則不變，「揭露／廣泛」時顯示原生 radio 組成的「遮蔽／剔除」雙段撥塊。滑動底塊表達目前選擇，Tab／方向鍵與焦點提示保留；關閉和僅標示時隱藏無效操作。`presentation` 只接受 `mask`／`remove`，缺少或損壞時預設 mask；保存在本機並透過既有設定更新跨分頁套用。儲存失敗會顯示錯誤並恢復已提交的選擇。規則與計數文字跟隨呈現方式。
 
+v0.6 在撥塊下方加入一列原生 checkbox／role=switch「接受 AI 程式碼」，附一句限定用途說明，僅在有過濾的檔位顯示。依使用者選擇，`acceptAICode` 缺少時預設 true，明確儲存 false 才關閉；既有安裝無需額外 migration 寫入。沿用序列化寫入、錯誤回復及 storage 同步。
+
 ## 邊界
 
 - `src/core.ts`：純判斷、頁面證據抽取、設定正規化。
+- `src/disclosure-keywords.ts`：集中維護程式詞、排他詞、非程式用途、含糊詞與完整否定句的本機字表。
+- `src/disclosure.ts`：僅程式用途的保守文字推斷，與 DOM／網路解耦。
 - `src/lookup.ts`：無 DOM 的披露解析、持久快取、請求合併、併發與退避；依賴可替換以供離線測試。
 - `src/background.ts`：Manifest V3 service worker，驗證訊息來源，連接查詢器、fetch 與本機儲存。
 - `src/content.ts`：在整個 Steam 商店網域執行，監聽 DOM 變動、更新標示、處理原因及例外。
@@ -22,7 +26,11 @@ v0.5 將命中條件與呈現方式分開：四檔規則不變，「揭露／廣
 - `public/`：manifest、樣式、彈窗 markup。
 - `tests/`：政策測試與瀏覽器 fixture，API 替身只供測試／預覽。
 
-Chrome 的 content scripts 依序載入 lookup.js、core.js、mask.js、layout.js、content.js。資料保存在 chrome.storage.local，要求 storage 與 Steam 商店的主機權限；腳本注入與背景訊息驗證均涵蓋整個 store.steampowered.com，不再白名單頁面路徑。pageKind 只標示頁面類型，不控制是否掃描。lookup.js 在內容腳本中只使用快取驗證函式，實際 Resolver 在背景 worker 中運作，跨分頁共用佇列。彈窗可以清除查詢快取。
+Chrome 的 content scripts 依序載入 lookup.js、disclosure-keywords.js、disclosure.js、core.js、mask.js、layout.js、content.js。資料保存在 chrome.storage.local，要求 storage 與 Steam 商店的主機權限；腳本注入與背景訊息驗證均涵蓋整個 store.steampowered.com，不再白名單頁面路徑。pageKind 只標示頁面類型，不控制是否掃描。lookup.js 在內容腳本中只使用快取驗證函式，實際 Resolver 在背景 worker 中運作，跨分頁共用佇列。彈窗可以清除查詢快取。
+
+程式碼例外只讀正式揭露原文。要求至少一個含明確排他語氣的程式句；每個其他句子須仍屬程式用途，或是可完整解析的非 AI／人工製作素材聲明。非程式用途、即時生成、含糊表述、無法理解的句子或已到 2000 字元截斷上限，一律不推定為僅程式。否定句擷取素材清單後必須完整消耗，避免「沒有 AI 美術，但有 AI 音樂」被整段誤當成否定。字表支援英、繁中、簡中有限寫法，未知語意保留原過濾結果。
+
+分類結果是推斷而非平台保證；顯示「依揭露判斷」，保留原文。先合併同 app 的頁面證據和有效快取，再套用例外；明確僅程式者在揭露／廣泛均可放行，包括已有 AI 題材 tag 者。無揭露的 tag 不構成程式證據，廣泛模式既有的 tag 命中不補查策略保持不變。分類以原文為鍵保留最多 500 筆記憶體結果，原文改變便重新判斷；不新增持久快取格式、外部服務、權限或查詢。標示模式仍保留 AI 訊號。
 
 動態內容以 100ms 合併變更，搜尋卡片只重新抽取新增或標記為 dirty 的項目；被移除的卡片會從索引清除。插件 UI 放在 shadow root，避免它的更新反覆觸發頁面 observer。遮蔽採絕對定位的純色覆蓋層，原卡片子元素保留布局但變成透明及 inert。絕對定位輪播保留其 position，只有 static 卡片補上 relative。恢復時移除遮罩並還原 aria／inert，不覆寫 Steam 原本的 display。
 

@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const vm = require('node:vm');
 const fs = require('node:fs');
 const ctx = vm.createContext({});
-vm.runInContext(fs.readFileSync('dist/core.js', 'utf8'), ctx);
+for (const file of ['disclosure-keywords', 'disclosure', 'core']) vm.runInContext(fs.readFileSync(`dist/${file}.js`, 'utf8'), ctx);
 const S = ctx.SAF;
 const evidence = (patch={}) => ({id:'42',title:'Test',tagMatch:false,tagAvailable:false,disclosure:null,parseIssue:false,...patch});
 test('all four levels: disclosure, tag-only and unknown', () => {

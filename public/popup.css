@@ -71,6 +71,21 @@ input:disabled { cursor: wait; }
 .presentation input:checked + span { color: var(--ink); font-weight: 600; }
 .presentation label:has(input:focus-visible) { outline: 2px solid var(--blue-deep); outline-offset: 2px; border-radius: 5px; }
 .presentation input:disabled { cursor: wait; }
+.code-option { margin-top: 16px; }
+.toggle-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 36px; cursor: pointer; }
+.toggle-row input {
+  appearance: none; flex: 0 0 38px; width: 38px; height: 22px; margin: 0; padding: 3px;
+  background: #c5ccd6; border: 0; border-radius: 20px; cursor: pointer; transition: background var(--motion);
+}
+.toggle-row input::before {
+  content: ""; display: block; width: 16px; height: 16px; border-radius: 50%; background: #fff;
+  box-shadow: 0 1px 2px #22243525; transition: transform var(--motion);
+}
+.toggle-row input:checked { background: var(--blue-deep); }
+.toggle-row input:checked::before { transform: translateX(16px); }
+.toggle-row input:focus-visible { outline-offset: 3px; }
+.toggle-row input:disabled { cursor: wait; opacity: .5; }
+#code-rule { margin: 2px 0 0; color: var(--muted); }
 [data-level="0"] .fill { opacity: 0; }
 [data-level="1"] .track { box-shadow: 0 0 12px #80d7ff25; }
 [data-level="2"] { --start: #4baeff; --end: var(--blue-deep); }

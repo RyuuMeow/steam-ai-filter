@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Steam AI Filter",
-  "version": "0.5.1",
+  "version": "0.6.0",
   "description": "動態查詢 Steam 遊戲的 AI 揭露並保存在本機，依等級標示、遮蔽或剔除遊戲。",
   "icons": {
     "16": "icons/icon16.png",
@@ -24,7 +24,7 @@
   },
   "content_scripts": [{
     "matches": ["https://store.steampowered.com/*"],
-    "js": ["lookup.js", "core.js", "mask.js", "layout.js", "content.js"],
+    "js": ["lookup.js", "disclosure-keywords.js", "disclosure.js", "core.js", "mask.js", "layout.js", "content.js"],
     "css": ["content.css"],
     "run_at": "document_idle"
   }]

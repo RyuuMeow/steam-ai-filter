@@ -4,12 +4,14 @@
   const rule = document.querySelector<HTMLElement>("#rule")!;
   const presentationControl = document.querySelector<HTMLElement>("#presentation")!;
   const presentations = Array.from(document.querySelectorAll<HTMLInputElement>('input[name="presentation"]'));
+  const codeOption = document.querySelector<HTMLElement>("#code-option")!;
+  const acceptCode = document.querySelector<HTMLInputElement>("#accept-ai-code")!;
   const pageStatus = document.querySelector<HTMLElement>("#page-status")!;
   const status = document.querySelector<HTMLElement>("#status")!;
   const coverage = document.querySelector<HTMLElement>("#coverage")!;
   const reveal = document.querySelector<HTMLButtonElement>("#reveal")!;
   const error = document.querySelector<HTMLElement>("#error")!;
-  let settings: SAF.Settings = {level: 1, presentation: "mask", allow: {}};
+  let settings: SAF.Settings = {level: 1, presentation: "mask", acceptAICode: true, allow: {}};
   let tabId: number | undefined;
   let isStoreTab = false;
   let writeQueue = Promise.resolve();
@@ -25,6 +27,8 @@
     input.value = String(level);
     rule.textContent = SAF.levels[level].description.replace("遮蔽", settings.presentation === "remove" ? "剔除" : "遮蔽");
     presentationControl.hidden = level < 2;
+    codeOption.hidden = level < 2;
+    acceptCode.checked = settings.acceptAICode;
     for (const radio of presentations) radio.checked = radio.value === settings.presentation;
     input.setAttribute("aria-valuetext", SAF.levels[level].name);
     if (changed) {
@@ -79,7 +83,7 @@
       reveal.hidden = true; coverage.hidden = true;
     }
   }
-  function save(update: Partial<Pick<SAF.Settings, "level" | "presentation">>) {
+  function save(update: Partial<Pick<SAF.Settings, "level" | "presentation" | "acceptAICode">>) {
     writeQueue = writeQueue.then(async () => {
       await chrome.storage.local.set(update);
       Object.assign(settings, update); error.hidden = true; paint(settings.level);
@@ -96,6 +100,7 @@
   for (const radio of presentations) radio.addEventListener("change", () => {
     if (radio.checked) save({presentation: SAF.normalizePresentation(radio.value)});
   });
+  acceptCode.addEventListener("change", () => save({acceptAICode: acceptCode.checked}));
   reveal.onclick = async () => {
     if (tabId === undefined) return;
     try { await chrome.tabs.sendMessage(tabId, {type: "SAF_REVEAL"}); await refresh(); }
@@ -132,9 +137,14 @@
       settings.presentation = SAF.normalizePresentation(changes.presentation.newValue);
       paint(settings.level); void refresh();
     }
+    if (changes.acceptAICode) {
+      settings.acceptAICode = SAF.normalizeAcceptAICode(changes.acceptAICode.newValue);
+      paint(settings.level); void refresh();
+    }
   });
   input.disabled = true;
   for (const radio of presentations) radio.disabled = true;
+  acceptCode.disabled = true;
   void (async () => {
     try {
       settings = await SAF.getSettings(); paint(settings.level); renderAllow();
@@ -142,6 +152,7 @@
       isStoreTab = Boolean(tab?.url?.startsWith("https://store.steampowered.com/"));
       tabId = tab?.id; await refresh(); input.disabled = false;
       for (const radio of presentations) radio.disabled = false;
+      acceptCode.disabled = false;
     } catch (e) { report(e); }
   })();
 })();

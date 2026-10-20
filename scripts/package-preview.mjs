@@ -13,8 +13,8 @@ for (const mode of ['home','search']) {
   page=page.replace('<link rel="stylesheet" href="/dist/content.css">',`<style>${await read('dist/content.css')}</style>`);
   page=page.replace('src="/preview-popup.html"',`srcdoc="${escape(popup)}"`);
   const files=mode==='home'
-    ? ['tests/bridge','tests/home-setup','dist/lookup','dist/core','dist/mask','dist/layout','dist/content','tests/home']
-    : ['tests/bridge','dist/lookup','dist/core','dist/mask','dist/layout','dist/content','tests/fixture'];
+    ? ['tests/bridge','tests/home-setup','dist/lookup','dist/disclosure-keywords','dist/disclosure','dist/core','dist/mask','dist/layout','dist/content','tests/home']
+    : ['tests/bridge','dist/lookup','dist/disclosure-keywords','dist/disclosure','dist/core','dist/mask','dist/layout','dist/content','tests/fixture'];
   for(const name of files){
     let js=await read(`${name}.js`);
     page=page.replace(`<script src="/${name}.js"></script>`,script(js));

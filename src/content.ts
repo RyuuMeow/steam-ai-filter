@@ -2,7 +2,7 @@
   let appMatch = location.pathname.match(/^\/app\/(\d+)(?:\/|$)/);
   let kind = SAF.pageKind(location.pathname);
   if (document.getElementById("saf-root")) return;
-  let settings: SAF.Settings = {level: 1, presentation: "mask", allow: {}};
+  let settings: SAF.Settings = {level: 1, presentation: "mask", acceptAICode: true, allow: {}};
   let revealing = false;
   let ready = false;
   let stopped = false;
@@ -169,7 +169,7 @@
     if (!contextReady()) return;
     currentDialog = e;
     shadow.querySelector("#dialog-title")!.textContent = e.title;
-    shadow.querySelector("#reason")!.textContent = SAF.reason(e);
+    shadow.querySelector("#reason")!.textContent = displayReason(e);
     shadow.querySelector("#evidence")!.textContent = e.disclosure
       ? `開發者揭露原文：\n\n${e.disclosure}${e.tagMatch ? "\n\n亦命中「人工智慧」標籤；標籤可能只代表遊戲題材。" : ""}`
       : "此遊戲的頁面資料帶有「人工智慧 / Artificial Intelligence」標籤。這可能描述遊戲題材，不能證明使用生成式 AI 製作。";
@@ -191,6 +191,10 @@
     } catch (e) { report(e); }
     finally { if (!stopped) allowButton.disabled = false; }
   };
+  function displayReason(e: SAF.Evidence): string {
+    return settings.acceptAICode && SAFDisclosure.isCodeOnly(e.disclosure)
+      ? "依揭露判斷：僅程式開發 · 已接受" : SAF.reason(e);
+  }
   reveal.onclick = () => { revealing = !revealing; render(); };
   function watchCard(card: Element) {
     if (watched.has(card)) return;
@@ -241,7 +245,7 @@
       else unknown++;
       if (requesting.has(evidence.id)) pending++;
       if (result?.state === "unavailable") failed++;
-      const hide = isCard && !revealing && SAF.shouldHide(evidence, settings.level, settings.allow);
+      const hide = isCard && !revealing && SAF.shouldHide(evidence, settings.level, settings.allow, settings.acceptAICode);
       if (hide) hidden++;
       if (hide && settings.presentation === "remove") removed.push(element);
       if (isCard) {
@@ -252,7 +256,7 @@
         if (!showBadge) existing?.remove();
         else {
           const badge = existing || document.createElement("span");
-          const text = SAF.reason(evidence) + (Object.hasOwn(settings.allow, evidence.id) ? " · 永遠顯示" : "");
+          const text = displayReason(evidence) + (Object.hasOwn(settings.allow, evidence.id) ? " · 永遠顯示" : "");
           if (badge.textContent !== text) badge.textContent = text;
           if (!existing) {
             badge.className = "saf-badge"; badge.tabIndex = 0; badge.setAttribute("role", "button");
@@ -298,7 +302,7 @@
     list.replaceChildren();
     for (const e of candidates.values()) {
       const li = document.createElement("li"), button = document.createElement("button");
-      button.textContent = `${e.title} · ${SAF.reason(e)}${Object.hasOwn(settings.allow, e.id) ? " · 永遠顯示" : ""}`;
+      button.textContent = `${e.title} · ${displayReason(e)}${Object.hasOwn(settings.allow, e.id) ? " · 永遠顯示" : ""}`;
       button.onclick = () => openReason(e);
       li.append(button); list.append(li);
     }
@@ -368,9 +372,13 @@
       if (area !== "local" || !contextReady()) return;
       if (changes.level) { settings.level = SAF.normalizeLevel(changes.level.newValue); revealing = false; }
       if (changes.presentation) { settings.presentation = SAF.normalizePresentation(changes.presentation.newValue); revealing = false; }
+      if (changes.acceptAICode) { settings.acceptAICode = SAF.normalizeAcceptAICode(changes.acceptAICode.newValue); revealing = false; }
       if (changes.allow) settings.allow = SAF.cleanAllow(changes.allow.newValue);
       if (changes.disclosureCache) readCache(changes.disclosureCache.newValue);
-      if (ready && (changes.level || changes.presentation || changes.allow || changes.disclosureCache)) render();
+      if (ready && (changes.level || changes.presentation || changes.acceptAICode || changes.allow || changes.disclosureCache)) {
+        render();
+        if (dialog.open && currentDialog) openReason(currentDialog);
+      }
     });
     chrome.runtime.onMessage.addListener((message, _sender, respond) => {
       if (!contextReady()) return;

@@ -27,6 +27,13 @@
         <label><input type="radio" name="presentation" value="mask" checked disabled><span>遮蔽</span></label>
         <label><input type="radio" name="presentation" value="remove" disabled><span>剔除</span></label>
       </div>
+      <div id="code-option" class="code-option" hidden>
+        <label class="toggle-row" for="accept-ai-code">
+          <span>接受 AI 程式碼</span>
+          <input id="accept-ai-code" type="checkbox" role="switch" aria-describedby="code-rule" checked disabled>
+        </label>
+        <p id="code-rule">僅放行明確只用於程式開發的揭露。</p>
+      </div>
     </section>
     <div id="page-status" class="page-status" hidden>
       <p id="status" role="status"></p>

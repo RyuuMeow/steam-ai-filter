@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="zh-Hant">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Steam AI Filter · 接受 AI 程式碼</title>
+<link rel="stylesheet" href="/dist/content.css">
+<style>
+* { box-sizing: border-box; }
+body { margin: 0; background: #f3f6f8; color: #222435; font: 14px/1.5 "Segoe UI", "Microsoft JhengHei", sans-serif; }
+main { max-width: 1040px; padding: 24px; margin: auto; }
+h1 { margin: 0 0 20px; font-size: 22px; }
+.layout { display: grid; grid-template-columns: 320px 1fr; gap: 24px; align-items: start; }
+iframe { width: 320px; height: 480px; border: 0; border-radius: 12px; }
+.store { padding: 16px; border-radius: 12px; background: #182738; color: #d6e4f1; }
+.catalog { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.card { display: block; position: relative; min-height: 148px; border-radius: 8px; overflow: hidden; background: #345064; color: inherit; text-decoration: none; }
+.card img { display: block; width: 100%; height: 72px; background: linear-gradient(130deg, #42687d, #5e8a8c); }
+.title { display: block; padding: 12px; }
+pre { white-space: pre-wrap; font: 12px/1.6 Consolas, monospace; }
+</style>
+<main>
+  <h1>接受 AI 程式碼 · 功能預覽</h1>
+  <div class="layout">
+    <iframe src="/preview-popup.html" title="插件彈窗預覽"></iframe>
+    <div class="store"><div class="catalog">
+      <a class="card" id="code" href="https://store.steampowered.com/app/901/" data-ds-tagids="[7926]">
+        <img alt="僅程式輔助" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E"><span class="title">僅程式輔助 · 保留</span>
+      </a>
+      <a class="card" id="mixed" href="https://store.steampowered.com/app/902/">
+        <img alt="程式與美術" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E"><span class="title">程式與美術</span>
+        <div class="game_area_description" hidden><h2>AI Generated Content Disclosure</h2><i>AI was used only for code and art.</i></div>
+      </a>
+      <a class="card" id="unclear" href="https://store.steampowered.com/app/903/">
+        <img alt="用途不明" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E"><span class="title">用途不明</span>
+        <div class="game_area_description" hidden><h2>AI Generated Content Disclosure</h2><i>AI helped us during development.</i></div>
+      </a>
+      <a class="card" id="negative" href="https://store.steampowered.com/app/904/">
+        <img alt="程式輔助、手作美術" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E"><span class="title">程式輔助、手作美術 · 保留</span>
+        <div class="game_area_description" hidden><h2>AI Generated Content Disclosure</h2><i>AI was used only for programming. No AI-generated art, music or dialogue is used.</i></div>
+      </a>
+      <a class="card" id="tagged" href="https://store.steampowered.com/app/905/" data-ds-tagids="[7926]">
+        <img alt="只有人工智慧標籤" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E"><span class="title">只有人工智慧標籤</span>
+      </a>
+      <a class="card" id="not-code" href="https://store.steampowered.com/app/906/">
+        <img alt="美術使用 AI、程式沒有" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E"><span class="title">美術使用 AI、程式沒有</span>
+        <div class="game_area_description" hidden><h2>AI Generated Content Disclosure</h2><i>No AI was used for code. AI art only.</i></div>
+      </a>
+      <a class="card" id="duplicate" href="https://store.steampowered.com/app/901/">
+        <img alt="同款遊戲第二張卡片" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E"><span class="title">同款遊戲第二張卡片 · 保留</span>
+      </a>
+    </div></div>
+  </div>
+  <pre id="test-results"></pre>
+</main>
+<script src="/tests/bridge.js"></script><script src="/tests/code-acceptance-setup.js"></script>
+<script src="/dist/lookup.js"></script><script src="/dist/disclosure-keywords.js"></script><script src="/dist/disclosure.js"></script><script src="/dist/core.js"></script>
+<script src="/dist/mask.js"></script><script src="/dist/layout.js"></script><script src="/dist/content.js"></script>
+<script src="/tests/code-acceptance.js"></script>
+</html>

@@ -9,7 +9,7 @@ namespace SAF {
     disclosure: string | null;
     parseIssue: boolean;
   }
-  export interface Settings { level: Level; presentation: Presentation; allow: Record<string, string> }
+  export interface Settings { level: Level; presentation: Presentation; acceptAICode: boolean; allow: Record<string, string> }
   export type PageKind = "home" | "search" | "app" | "store";
   export interface Status {
     kind: PageKind;
@@ -36,6 +36,9 @@ namespace SAF {
   }
   export function normalizePresentation(value: unknown): Presentation {
     return value === "remove" ? "remove" : "mask";
+  }
+  export function normalizeAcceptAICode(value: unknown): boolean {
+    return value !== false;
   }
   export function cleanAllow(value: unknown): Record<string, string> {
     const result: Record<string, string> = {};
@@ -68,8 +71,9 @@ namespace SAF {
       return {ids: data.map(String), issue: false};
     } catch { return {ids: [], issue: true}; }
   }
-  export function shouldHide(e: Evidence, level: Level, allow: Record<string, string>): boolean {
+  export function shouldHide(e: Evidence, level: Level, allow: Record<string, string>, acceptAICode = true): boolean {
     if (Object.hasOwn(allow, e.id) || level < 2) return false;
+    if (acceptAICode && SAFDisclosure.isCodeOnly(e.disclosure)) return false;
     return Boolean(e.disclosure) || (level === 3 && e.tagMatch);
   }
   export function reason(e: Evidence): string {
@@ -209,7 +213,8 @@ namespace SAF {
     return new Map(all.map(([el, e]) => [el, {...byId.get(e.id)!, title: e.title}]));
   }
   export async function getSettings(): Promise<Settings> {
-    const data = await chrome.storage.local.get(["level", "presentation", "allow"]);
-    return {level: normalizeLevel(data.level), presentation: normalizePresentation(data.presentation), allow: cleanAllow(data.allow)};
+    const data = await chrome.storage.local.get(["level", "presentation", "acceptAICode", "allow"]);
+    return {level: normalizeLevel(data.level), presentation: normalizePresentation(data.presentation),
+      acceptAICode: normalizeAcceptAICode(data.acceptAICode), allow: cleanAllow(data.allow)};
   }
 }
