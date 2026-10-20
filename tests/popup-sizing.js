@@ -31,6 +31,11 @@ frame.addEventListener('load', async () => {
       const bounds=row.getBoundingClientRect();
       return bounds.width>0&&bounds.right<=320&&bounds.height>=36;
     }), 'all category labels and switches remain inside the popup with usable row heights');
+    frame.style.height = '600px';
+    await wait();
+    assert(frame.contentWindow.getComputedStyle(doc.documentElement).overflowX==='hidden'
+      && [...doc.querySelectorAll('#category-list input')].every(input=>input.getBoundingClientRect().right<=doc.documentElement.clientWidth),
+      'height-limited popup scrolls vertically without a horizontal bar or clipped switches');
     frame.style.height = `${doc.body.scrollHeight}px`;
     out.textContent += 'ALL POPUP SIZING TESTS PASSED';
     document.documentElement.dataset.tests = 'passed';

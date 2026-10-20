@@ -3,6 +3,9 @@
 * { box-sizing: border-box; }
 /* The extension host measures content to size its popup. Do not depend on that viewport. */
 html, body { width: 320px; min-width: 320px; }
+/* A height-limited action popup adds a vertical scrollbar. Keep it from creating
+   a second horizontal scrollbar; controls fit inside the existing 24px padding. */
+html { overflow-x: hidden; }
 body {
   margin: 0; padding: 24px;
   background: var(--surface); color: var(--ink);
