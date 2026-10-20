@@ -73,6 +73,9 @@ GitHub 另外自動顯示的 **Source code (zip/tar.gz)** 連結由平台提供�
 下次發版時，先同步修改 `package.json`、`package-lock.json`（包含根 package 版本）及 `public/manifest.json`，更新 README 與驗證紀錄，執行 `npm run package` 並提交 `extension/`。再推送新的 `v版本號` 標籤。
 標籤不符、安裝包過期或驗證失敗都會停止發版；已存在的 Release 不會被覆寫。若流程在發布前失敗，修復環境後可重新執行該 workflow；程式碼修正則使用新版本標籤。
 
+若標籤已存在但尚未建立 Release，可到 **Actions → Release → Run workflow**，選擇 `main`，在 `tag` 填入既有版本標籤（例如 `v0.7.1`）。
+流程會取出該標籤的程式碼，執行相同的版本檢查、測試及 RAR 驗證，不會更改標籤。
+
 ### 本機產生 RAR
 
 本機需有 RAR CLI（Windows 可使用已安裝 WinRAR 附帶的 `Rar.exe`）：

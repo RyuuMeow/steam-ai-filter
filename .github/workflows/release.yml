@@ -4,12 +4,18 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing version tag to release (for example v0.7.1)'
+        required: true
+        type: string
 
 permissions:
   contents: read
 
 concurrency:
-  group: release-${{ github.ref }}
+  group: release-${{ inputs.tag || github.ref_name }}
   cancel-in-progress: false
 
 jobs:
@@ -17,16 +23,18 @@ jobs:
     runs-on: ubuntu-24.04
     permissions:
       contents: write
+    env:
+      RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: refs/tags/${{ inputs.tag || github.ref_name }}
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: npm
       - name: Verify release version
         id: release
-        env:
-          RELEASE_TAG: ${{ github.ref_name }}
         run: npm run release:check -- "$RELEASE_TAG"
       - run: npm ci
       - run: npm run check
@@ -39,7 +47,6 @@ jobs:
       - name: Publish plugin RAR
         env:
           GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ github.ref_name }}
           RELEASE_ASSET: ${{ steps.release.outputs.asset }}
         run: |
           gh release create "$RELEASE_TAG" "$RELEASE_ASSET" \
