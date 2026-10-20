@@ -1,4 +1,4 @@
-testBridge.data.level = 3;
+testBridge.data.level = 2;
 testBridge.data.presentation = 'remove';
 const now = Date.now();
 testBridge.data.disclosureCache = {version:1,sessionAware:true,items:{

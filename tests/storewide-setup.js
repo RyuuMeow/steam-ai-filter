@@ -7,7 +7,7 @@ document.querySelector('#background-card').style.backgroundImage=`url("${art}")`
 if(location.pathname.startsWith('/app/'))document.querySelector('.product-main').style.display='block';
 const now=Date.now();
 void chrome.storage.local.set({level:3,disclosureCache:{version:1,sessionAware:true,cooldownUntil:0,items:{
-  '5151540':{state:'disclosed',disclosure:'Synthetic fixture disclosure.',checkedAt:now,expiresAt:now+86400000},
+  '5151540':{state:'disclosed',disclosure:'Synthetic fixture: AI-generated artwork.',checkedAt:now,expiresAt:now+86400000},
   '621':{state:'not-found',disclosure:null,checkedAt:now,expiresAt:now+86400000}
 }}});
 document.addEventListener('click',event=>{if(event.target.closest('a'))event.preventDefault();});

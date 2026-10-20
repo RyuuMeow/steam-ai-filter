@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="zh-Hant">
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Steam AI Filter · 接受 AI 程式碼</title>
+<title>Steam AI Filter · AI 用途過濾</title>
 <link rel="stylesheet" href="/dist/content.css">
 <style>
 * { box-sizing: border-box; }
@@ -18,7 +18,7 @@ iframe { width: 320px; height: 480px; border: 0; border-radius: 12px; }
 pre { white-space: pre-wrap; font: 12px/1.6 Consolas, monospace; }
 </style>
 <main>
-  <h1>接受 AI 程式碼 · 功能預覽</h1>
+  <h1>AI 用途過濾 · 功能預覽</h1>
   <div class="layout">
     <iframe src="/preview-popup.html" title="插件彈窗預覽"></iframe>
     <div class="store"><div class="catalog">
@@ -51,8 +51,8 @@ pre { white-space: pre-wrap; font: 12px/1.6 Consolas, monospace; }
   </div>
   <pre id="test-results"></pre>
 </main>
-<script src="/tests/bridge.js"></script><script src="/tests/code-acceptance-setup.js"></script>
+<script src="/tests/bridge.js"></script><script src="/tests/categories-setup.js"></script>
 <script src="/dist/lookup.js"></script><script src="/dist/disclosure-keywords.js"></script><script src="/dist/disclosure.js"></script><script src="/dist/core.js"></script>
 <script src="/dist/mask.js"></script><script src="/dist/layout.js"></script><script src="/dist/content.js"></script>
-<script src="/tests/code-acceptance.js"></script>
+<script src="/tests/categories.js"></script>
 </html>

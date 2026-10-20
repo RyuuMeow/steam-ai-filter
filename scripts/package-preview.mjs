@@ -5,8 +5,9 @@ const script=s=>`<script>${s.replaceAll('</script','<\\/script')}</script>`;
 let popup=await read('dist/popup.html');
 popup=popup.replace('<head>','<head>'+script(await read('tests/bridge.js')));
 for(const name of ['tokens','popup'])popup=popup.replace(`<link rel="stylesheet" href="${name}.css">`,`<style>${await read(`dist/${name}.css`)}</style>`);
-for(const name of ['core','popup'])popup=popup.replace(`<script src="${name}.js" defer></script>`,'');
-popup=popup.replace('</body>',script(await read('dist/core.js'))+script(await read('dist/popup.js'))+'</body>');
+const popupScripts=['disclosure-keywords','disclosure','core','popup'];
+for(const name of popupScripts)popup=popup.replace(`<script src="${name}.js" defer></script>`,'');
+popup=popup.replace('</body>',(await Promise.all(popupScripts.map(async name=>script(await read(`dist/${name}.js`))))).join('')+'</body>');
 await mkdir('artifacts',{recursive:true});
 for (const mode of ['automation','home','search']) {
   let page=await read(mode==='automation'?'tests/automation.html':mode==='home'?'tests/home.html':'tests/fixture.html');

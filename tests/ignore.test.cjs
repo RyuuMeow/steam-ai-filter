@@ -8,7 +8,7 @@ for (const name of ['lookup','disclosure-keywords','disclosure','core','ignore']
 const I = ctx.SAFIgnore;
 const item = (id='101', patch={}) => ({id,title:`Game ${id}`,disclosure:'AI generated character art.',tagMatch:false,tagAvailable:true,parseIssue:false,...patch});
 function harness(saved) {
-  const h = {now:1_800_000_000_000, state:saved, settings:{level:2,presentation:'mask',acceptAICode:true,autoIgnore:false,showChecked:true,allow:{}},
+  const h = {now:1_800_000_000_000, state:saved, settings:{level:2,presentation:'mask',filterCategories:ctx.SAF.normalizeCategories(),autoIgnore:false,showChecked:true,allow:{}},
     calls:[], posts:[], ignored:{}, accountId:'12345', scheduled:null, cache:{}, override:null};
   h.deps = {
     load:async()=>structuredClone(h.state),
@@ -35,10 +35,10 @@ function harness(saved) {
   h.tick=async(ms=30000)=>{h.now+=ms;await h.service.tick();};
   return h;
 }
-test('defaults are disclosure, mask, code accepted, checks shown, and account changes off', async()=>{
+test('defaults are disclosure, mask, art selected, checks shown, and account changes off', async()=>{
   ctx.chrome={storage:{local:{get:async()=>({})}}};
   const s=await ctx.SAF.getSettings();
-  assert.equal(s.level,2);assert.equal(s.presentation,'mask');assert.equal(s.acceptAICode,true);
+  assert.equal(s.level,2);assert.equal(s.presentation,'mask');assert.equal(s.filterCategories.art,true);
   assert.equal(s.showChecked,true);assert.equal(s.autoIgnore,false);
   ctx.chrome.storage.local.get=async()=>({level:1,presentation:'remove',showChecked:false,autoIgnore:'true'});
   const existing=await ctx.SAF.getSettings();
@@ -62,7 +62,7 @@ test('shared queue deduplicates cross-tab matches and verifies successful writes
   await h.service.enqueue([item()]);assert.equal(h.state.queue.length,0);
   assert.ok(h.calls.every(c=>c.credentials==='include'&&c.redirect==='error'));
 });
-test('every candidate respects current level, code exception and manual allowlist, including late cache updates', async()=>{
+test('every candidate respects current level, selected categories and manual allowlist, including late cache updates', async()=>{
   const h=harness();await h.enable();h.settings.allow['101']='allowed';
   await h.service.enqueue([item(),item('102',{disclosure:'AI was used only for code.'}),item('103',{disclosure:null,tagMatch:true}),item('104')]);
   assert.deepEqual(h.state.queue.map(x=>x.id),['104']);
@@ -70,7 +70,7 @@ test('every candidate respects current level, code exception and manual allowlis
   await h.tick();assert.equal(h.posts.length,0);
   h.settings.level=3;await h.service.enqueue([item('103',{disclosure:null,tagMatch:true})]);
   await h.tick();assert.deepEqual(h.posts,['103']);
-  h.settings.acceptAICode=false;await h.service.enqueue([item('102',{disclosure:'AI was used only for code.'})]);await h.tick();
+  h.settings.filterCategories.code=true;await h.service.enqueue([item('102',{disclosure:'AI was used only for code.'})]);await h.tick();
   assert.deepEqual(h.posts,['103','102']);
 });
 test('unknown/malformed candidates cannot trigger writes and queue size is bounded', async()=>{
@@ -81,14 +81,14 @@ test('unknown/malformed candidates cannot trigger writes and queue size is bound
   assert.equal(h.state.queue.length,200);
 });
 test('disabling, marking-only, or adding an exception cancels queued work', async()=>{
-  for(const change of [s=>s.autoIgnore=false,s=>s.level=1,s=>s.allow['101']='allowed']){
+  for(const change of [s=>s.autoIgnore=false,s=>s.level=1,s=>s.filterCategories.art=false,s=>s.allow['101']='allowed']){
     const h=harness();await h.enable();await h.service.enqueue([item()]);
     change(h.settings);await h.service.reconcile();await h.tick();
     assert.equal(h.state.queue.length,0);assert.equal(h.posts.length,0);assert.equal(h.scheduled,null);
   }
 });
-test('off and code exceptions changed during a request are checked again before POST', async()=>{
-  for(const change of [h=>h.settings.autoIgnore=false,h=>h.settings.allow['101']='allowed',
+test('off and selected categories changed during a request are checked again before POST', async()=>{
+  for(const change of [h=>h.settings.autoIgnore=false,h=>h.settings.filterCategories.art=false,h=>h.settings.allow['101']='allowed',
     h=>h.cache['101']={state:'disclosed',disclosure:'AI was used only for code.',checkedAt:h.now,expiresAt:h.now+60000}]){
     const h=harness();await h.enable();await h.service.enqueue([item()]);
     h.override=async url=>{if(url.includes('/dynamicstore/userdata/'))change(h);};

@@ -4,7 +4,7 @@ var SAF;
     SAF.levels = [
         { name: "關閉", description: "保留 Steam 原本的顯示方式。" },
         { name: "標示", description: "標示 AI 相關訊號，保留所有遊戲。" },
-        { name: "揭露", description: "遮蔽已披露使用 AI 的遊戲。" },
+        { name: "揭露", description: "遮蔽揭露中命中所選用途的遊戲。" },
         { name: "廣泛", description: "廣泛可能會遮蔽非 AI 生成內容。" }
     ];
     function normalizeLevel(value) {
@@ -16,10 +16,11 @@ var SAF;
         return value === "remove" ? "remove" : "mask";
     }
     SAF.normalizePresentation = normalizePresentation;
-    function normalizeAcceptAICode(value) {
-        return value !== false;
+    function normalizeCategories(value) {
+        const saved = value && typeof value === "object" && !Array.isArray(value) ? value : null;
+        return Object.fromEntries(SAFDisclosure.categories.map(category => [category, saved ? saved[category] === true : category === "art"]));
     }
-    SAF.normalizeAcceptAICode = normalizeAcceptAICode;
+    SAF.normalizeCategories = normalizeCategories;
     function cleanAllow(value) {
         const result = {};
         if (value && typeof value === "object") {
@@ -61,12 +62,13 @@ var SAF;
         }
     }
     SAF.parseTagIds = parseTagIds;
-    function shouldHide(e, level, allow, acceptAICode = true) {
-        if (Object.hasOwn(allow, e.id) || level < 2)
+    function shouldHide(e, level, allow, selected = normalizeCategories()) {
+        if (Object.hasOwn(allow, e.id) || level < 2 || !SAFDisclosure.categories.some(category => selected[category]))
             return false;
-        if (acceptAICode && SAFDisclosure.isCodeOnly(e.disclosure))
-            return false;
-        return Boolean(e.disclosure) || (level === 3 && e.tagMatch);
+        if (e.disclosure)
+            return SAFDisclosure.classifyUses(e.disclosure).some(category => selected[category]);
+        // Broad mode is the explicit tag-only fallback; known disclosures use categories.
+        return level === 3 && e.tagMatch;
     }
     SAF.shouldHide = shouldHide;
     function reason(e) {
@@ -283,9 +285,9 @@ var SAF;
     }
     SAF.mergeEvidence = mergeEvidence;
     async function getSettings() {
-        const data = await chrome.storage.local.get(["level", "presentation", "acceptAICode", "autoIgnore", "showChecked", "allow"]);
+        const data = await chrome.storage.local.get(["level", "presentation", "filterCategories", "autoIgnore", "showChecked", "allow"]);
         return { level: normalizeLevel(data.level), presentation: normalizePresentation(data.presentation),
-            acceptAICode: normalizeAcceptAICode(data.acceptAICode), autoIgnore: data.autoIgnore === true,
+            filterCategories: normalizeCategories(data.filterCategories), autoIgnore: data.autoIgnore === true,
             showChecked: data.showChecked !== false, allow: cleanAllow(data.allow) };
     }
     SAF.getSettings = getSettings;

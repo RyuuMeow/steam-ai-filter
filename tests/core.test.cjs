@@ -8,7 +8,7 @@ const S = ctx.SAF;
 const evidence = (patch={}) => ({id:'42',title:'Test',tagMatch:false,tagAvailable:false,disclosure:null,parseIssue:false,...patch});
 test('all four levels: disclosure, tag-only and unknown', () => {
   for (const level of [0,1,2,3]) {
-    assert.equal(S.shouldHide(evidence({disclosure:'Original disclosure'}), level, {}), level >= 2);
+    assert.equal(S.shouldHide(evidence({disclosure:'AI-generated artwork'}), level, {}), level >= 2);
     assert.equal(S.shouldHide(evidence({tagMatch:true}), level, {}), level === 3);
     assert.equal(S.shouldHide(evidence(), level, {}), false);
   }

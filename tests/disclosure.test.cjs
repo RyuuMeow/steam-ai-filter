@@ -4,77 +4,73 @@ const vm = require('node:vm');
 const fs = require('node:fs');
 const ctx = vm.createContext({});
 for (const file of ['disclosure-keywords', 'disclosure', 'core']) vm.runInContext(fs.readFileSync(`dist/${file}.js`, 'utf8'), ctx);
-const classify = ctx.SAFDisclosure.isCodeOnly;
+const classify = text => Array.from(ctx.SAFDisclosure.classifyUses(text));
 const S = ctx.SAF;
+const evidence = disclosure => ({id:'42',title:'Test',disclosure,tagMatch:true,tagAvailable:true,parseIssue:false});
 
-test('explicit code-only disclosures in English and Chinese are accepted', () => {
-  for (const text of [
-    'AI was used only for code assistance.',
-    'We used ChatGPT exclusively to help write and debug code.',
-    'AI was used solely for programming and debugging.',
-    'Only coding assistance.',
-    'AI Generated Content Disclosure: AI was used only for programming.',
-    'AI was used only for code. No AI-generated art, music or dialogue is used.',
-    'AI was used only for programming. All art and music were created by humans.',
-    '本作僅使用 AI 輔助程式碼撰寫與除錯。',
-    '仅使用 AI 辅助代码编写和调试。',
-    'AI 僅用於程式開發。沒有 AI 生成的美術或音樂。',
-    'AI 仅用于代码编写。所有美术均为手工制作。'
-  ]) assert.equal(classify(text), true, text);
+test('each local pack classifies its own English and Chinese disclosure', () => {
+  const cases = {
+    art:['AI generated artwork, icons and textures.','AI generated 2D assets.','AI-generated images based on hand-drawn references.','Midjourney was used for portraits.','AI 生成美術、插畫與背景圖。','使用 AI 生成图片和立绘。'],
+    music:['AI generated background music and sound effects.','Music was generated with Suno.','AI 產生音樂和音效。'],
+    voice:['AI generated voice acting.','We used text-to-speech.','使用 AI 配音與語音合成。'],
+    text:['AI generated dialogue and story.','AI helped with copywriting.','AI 產生劇情、對話和文案。'],
+    translation:['AI used for translating the existing dialogue and text.','AI text translation.','使用 AI 翻譯遊戲對話。','文字翻译使用 AI。'],
+    code:['AI used for code assistance.','AI helps with writing code.','GitHub Copilot helped with debugging.','AI 輔助程式碼與除錯。','AI 辅助代码编写。']
+  };
+  for(const [category, examples] of Object.entries(cases)) for(const text of examples) assert.deepEqual(classify(text),[category],text);
 });
-test('mixed uses and ambiguous descriptions never get the code exception', () => {
-  for (const text of [
-    'AI was used for code assistance.',
-    'AI was used only for code and art.',
-    'AI was used only for code, translation and localization.',
-    'AI was used only for code and voice generation.',
-    'AI was used only for code and NPC dialogue.',
-    'AI was used only for code and game design.',
-    'AI was used only for scripts.',
-    'Only the code is human-written.',
-    'Only the code is human, the rest is AI generated.',
-    '只有程式碼是手寫。',
-    'AI was used only for code. Music was generated with Suno.',
-    'AI was used only for code. We used another tool to help us too.',
-    'AI was primarily used for code.',
-    'AI was not only used for code.',
-    'AI was used only for programming etc.',
-    'AI was used only for code and other purposes.',
-    'AI was used only for code. No AI-generated art is used but music is generated.',
-    'AI was used only for code. No AI-generated art is used and music is generated.',
-    'AI was used only for code. All art is hand-drawn and AI music is included.',
-    'AI was used only for code. All art is hand-drawn except the backgrounds.',
-    'No AI was used for code. AI art only.',
-    'AI is only used for code while playing in real time.',
-    'AI 僅用於程式碼和美術。',
-    'AI 僅用於程式碼。沒有 AI 美術，但是配音是 AI 生成。',
-    '本作主要使用 AI 輔助程式碼。',
-    'AI used for translating store page only.',
-    'We used AI to generate some game scene images, icons, translation and code.',
-    '', null, 'AI was used only for code.' + ' '.repeat(2000)
-  ]) assert.equal(classify(text), false, text);
+test('mixed disclosures retain each positive category and ignore denied uses', () => {
+  const cases = [
+    ['AI was used for art, translation and code.',['art','translation','code']],
+    ['AI was used only for code. No AI-generated art, music or dialogue is used.',['code']],
+    ['AI used for translation, not art.',['translation']],
+    ['AI was not used for code. AI art only.',['art']],
+    ['All art is hand-drawn and AI music is included.',['music']],
+    ['All art is hand-drawn except the backgrounds.',['art']],
+    ['No AI art is used and music is generated.',['music']],
+    ['AI was not only used for code and art.',['art','code']],
+    ['AI artwork was generated, then manually edited.',['art']],
+    ['AI was used to translate text and generate dialogue.',['text','translation']],
+    ['AI 僅用於程式碼。沒有 AI 美術，但是配音是 AI 生成。',['voice','code']],
+    ['AI 不僅用於美術，也用於翻譯。',['art','translation']],
+    ['所有美術均為手繪。AI 翻譯對話。',['translation']],
+    ['AI 仅用于代码。没有 AI 生成的美术或音乐。',['code']]
+  ];
+  for(const [text, expected] of cases) assert.deepEqual(classify(text),expected,text);
 });
-test('default enabled exception applies to known code-only evidence, not tag-only guesses', () => {
-  const evidence = {id:'42',title:'Test',disclosure:'AI was used only for programming.',tagMatch:true,tagAvailable:true,parseIssue:false};
-  for (const level of [0,1,2,3]) {
-    assert.equal(S.shouldHide(evidence, level, {}), false);
-    assert.equal(S.shouldHide(evidence, level, {}, false), level >= 2);
-    assert.equal(S.shouldHide(evidence, level, {'42':'Test'}, false), false);
+test('ambiguous words, negations and missing disclosures do not guess a use',()=>{
+  for(const text of ['',null,'AI assisted development.','AI models and assets.','Scripts and characters.','No AI art or music.','No AI art and music is used.','We did not use AI for artwork.','All artwork and music were created by humans.','沒有 AI 生成的美術或音樂。']) assert.deepEqual(classify(text),[],text);
+});
+test('only selected categories filter; formal unknowns and unselected uses stay visible even in broad mode',()=>{
+  for(const level of [0,1,2,3]) {
+    assert.equal(S.shouldHide(evidence('AI art and code.'),level,{}),level>=2);
+    assert.equal(S.shouldHide(evidence('AI translation and code.'),level,{}),false);
+    assert.equal(S.shouldHide(evidence('AI used during development.'),level,{}),false);
+    assert.equal(S.shouldHide(evidence('AI translation.'),level,{},S.normalizeCategories({translation:true})),level>=2);
+    assert.equal(S.shouldHide(evidence('AI art.'),level,{},S.normalizeCategories({})),false);
+    assert.equal(S.shouldHide(evidence(null),level,{},S.normalizeCategories({})),false);
+    assert.equal(S.shouldHide(evidence('AI art.'),level,{'42':'Manual'}),false);
   }
-  assert.equal(S.shouldHide({...evidence,disclosure:null},3,{},true),true);
-  assert.equal(S.shouldHide({...evidence,disclosure:'AI code and art.'},2,{},true),true);
+  assert.equal(S.shouldHide(evidence(null),3,{}),true);
 });
-test('new and existing installs default on; saved off remains off', async () => {
-  for (const value of [undefined,null,true,0,'false',{}]) assert.equal(S.normalizeAcceptAICode(value),true);
-  assert.equal(S.normalizeAcceptAICode(false),false);
-  ctx.chrome = {storage:{local:{get:async()=>({level:2,presentation:'remove',allow:{}})}}};
-  assert.equal((await S.getSettings()).acceptAICode,true);
-  ctx.chrome.storage.local.get=async()=>({acceptAICode:false});
-  assert.equal((await S.getSettings()).acceptAICode,false);
+test('new and legacy installs default to art alone without changing other settings', async()=>{
+  for(const value of [undefined,null,[],false,'art']) assert.deepEqual(JSON.parse(JSON.stringify(S.normalizeCategories(value))),{art:true,music:false,voice:false,text:false,translation:false,code:false});
+  assert.deepEqual(JSON.parse(JSON.stringify(S.normalizeCategories({code:true,art:'true',music:1,unknown:true}))),{art:false,music:false,voice:false,text:false,translation:false,code:true});
+  for(const acceptAICode of [undefined,true,false]) {
+    ctx.chrome={storage:{local:{get:async()=>({acceptAICode,level:3,presentation:'remove',allow:{42:'Game'},autoIgnore:true,showChecked:false})}}};
+    const s=await S.getSettings();
+    assert.equal(s.filterCategories.art,true);assert.equal(s.filterCategories.code,false);
+    assert.equal(s.level,3);assert.equal(s.presentation,'remove');assert.equal(s.allow['42'],'Game');assert.equal(s.autoIgnore,true);assert.equal(s.showChecked,false);
+    assert.equal('acceptAICode' in s,false);
+  }
+  ctx.chrome.storage.local.get=async()=>({filterCategories:{}});
+  assert.ok(Object.values((await S.getSettings()).filterCategories).every(value=>value===false));
 });
-test('classification depends only on current disclosure, not previous results', () => {
-  for (let i=0;i<510;i++) classify(`AI was used only for code ${i}.`);
-  assert.equal(classify('AI was used only for code.'),true);
-  assert.equal(classify('AI was used only for code and images.'),false);
-  assert.equal(classify('AI was used only for code.'),true);
+test('cached classification is independent of selection and disclosure changes',()=>{
+  for(let i=0;i<510;i++) classify(`AI code ${i}.`);
+  assert.deepEqual(classify('AI code.'),['code']);
+  assert.deepEqual(classify('AI code and art.'),['art','code']);
+  assert.equal(S.shouldHide(evidence('AI code.'),2,{}),false);
+  assert.equal(S.shouldHide(evidence('AI code.'),2,{},S.normalizeCategories({code:true})),true);
+  assert.equal(S.shouldHide(evidence('AI code.'),2,{}),false);
 });

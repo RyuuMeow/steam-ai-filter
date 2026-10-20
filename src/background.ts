@@ -34,7 +34,7 @@ importScripts("lookup.js", "disclosure-keywords.js", "disclosure.js", "core.js",
     if (area === "local" && changes.level) resolver.setEnabled(changes.level.newValue !== 0);
     const ignoreCooldown = (changes.ignoreState?.newValue as SAFIgnore.State | undefined)?.cooldownUntil || 0;
     if (area === "local" && ignoreCooldown > Date.now()) resolver.setEnabled(false);
-    if (area === "local" && (changes.autoIgnore || changes.level || changes.allow || changes.acceptAICode)) {
+    if (area === "local" && (changes.autoIgnore || changes.level || changes.allow || changes.filterCategories)) {
       void ignore.reconcile().catch(reportIgnoreFailure);
     }
   });

@@ -41,7 +41,7 @@ importScripts("lookup.js", "disclosure-keywords.js", "disclosure.js", "core.js",
         const ignoreCooldown = changes.ignoreState?.newValue?.cooldownUntil || 0;
         if (area === "local" && ignoreCooldown > Date.now())
             resolver.setEnabled(false);
-        if (area === "local" && (changes.autoIgnore || changes.level || changes.allow || changes.acceptAICode)) {
+        if (area === "local" && (changes.autoIgnore || changes.level || changes.allow || changes.filterCategories)) {
             void ignore.reconcile().catch(reportIgnoreFailure);
         }
     });

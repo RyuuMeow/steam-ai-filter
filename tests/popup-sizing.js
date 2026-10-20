@@ -19,10 +19,10 @@ frame.addEventListener('load', async () => {
       await wait();
       assert(doc.documentElement.scrollWidth === 320, 'measured popup has no horizontal overflow');
     }
-    doc.querySelector('summary').click();
+    doc.querySelector('#management summary').click();
     await wait();
     assert(Math.abs(doc.body.getBoundingClientRect().width - 320) < 1, 'management does not change popup width');
-    doc.querySelector('summary').click();
+    doc.querySelector('#management summary').click();
     frame.style.height = `${doc.body.scrollHeight}px`;
     out.textContent += 'ALL POPUP SIZING TESTS PASSED';
     document.documentElement.dataset.tests = 'passed';

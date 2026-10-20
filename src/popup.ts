@@ -5,8 +5,16 @@
   const broadWarning = document.querySelector<HTMLElement>("#broad-warning")!;
   const presentationControl = document.querySelector<HTMLElement>("#presentation")!;
   const presentations = Array.from(document.querySelectorAll<HTMLInputElement>('input[name="presentation"]'));
-  const codeOption = document.querySelector<HTMLElement>("#code-option")!;
-  const acceptCode = document.querySelector<HTMLInputElement>("#accept-ai-code")!;
+  const filterOptions = document.querySelector<HTMLDetailsElement>("#filter-options")!;
+  const categoryList = document.querySelector<HTMLElement>("#category-list")!;
+  const categoryToggles = new Map<SAFDisclosure.Category, HTMLInputElement>();
+  for (const category of SAFDisclosure.categories) {
+    const label = document.createElement("label"), text = document.createElement("span"), toggle = document.createElement("input");
+    label.className = "toggle-row"; label.htmlFor = `filter-${category}`;
+    text.textContent = SAFDisclosure.packs[category].label;
+    toggle.id = `filter-${category}`; toggle.type = "checkbox"; toggle.setAttribute("role", "switch"); toggle.disabled = true;
+    label.append(text, toggle); categoryList.append(label); categoryToggles.set(category, toggle);
+  }
   const ignoreOption = document.querySelector<HTMLElement>("#ignore-option")!;
   const autoIgnore = document.querySelector<HTMLInputElement>("#auto-ignore")!;
   const checkedOption = document.querySelector<HTMLElement>("#checked-option")!;
@@ -17,7 +25,7 @@
   const coverage = document.querySelector<HTMLElement>("#coverage")!;
   const reveal = document.querySelector<HTMLButtonElement>("#reveal")!;
   const error = document.querySelector<HTMLElement>("#error")!;
-  let settings: SAF.Settings = {level: 2, presentation: "mask", acceptAICode: true, autoIgnore: false, showChecked: true, allow: {}};
+  let settings: SAF.Settings = {level: 2, presentation: "mask", filterCategories: SAF.normalizeCategories(), autoIgnore: false, showChecked: true, allow: {}};
   let ignoreState: Partial<SAFIgnore.State> = {};
   let tabId: number | undefined;
   let isStoreTab = false;
@@ -35,8 +43,11 @@
     rule.textContent = SAF.levels[level].description.replace("遮蔽", settings.presentation === "remove" ? "剔除" : "遮蔽");
     broadWarning.hidden = level !== 3;
     presentationControl.hidden = level < 2;
-    codeOption.hidden = level < 2;
-    acceptCode.checked = settings.acceptAICode;
+    filterOptions.hidden = level < 2;
+    for (const [category, toggle] of categoryToggles) toggle.checked = settings.filterCategories[category];
+    const selected = SAFDisclosure.categories.filter(category => settings.filterCategories[category]);
+    document.querySelector("#filter-selection")!.textContent = selected.length === 1
+      ? SAFDisclosure.packs[selected[0]].label : selected.length ? `已選 ${selected.length} 項` : "未選取";
     ignoreOption.hidden = level < 2;
     checkedOption.hidden = level === 0;
     autoIgnore.checked = settings.autoIgnore;
@@ -107,10 +118,12 @@
       reveal.hidden = true; coverage.hidden = true;
     }
   }
-  function save(update: Partial<Pick<SAF.Settings, "level" | "presentation" | "acceptAICode" | "showChecked">>) {
+  function save(update: Partial<Pick<SAF.Settings, "level" | "presentation" | "showChecked">> |
+    (() => Promise<Partial<SAF.Settings>>)) {
     writeQueue = writeQueue.then(async () => {
-      await chrome.storage.local.set(update);
-      Object.assign(settings, update); error.hidden = true; paint(settings.level);
+      const committed = typeof update === "function" ? await update() : update;
+      await chrome.storage.local.set(committed);
+      Object.assign(settings, committed); error.hidden = true; paint(settings.level);
       // Ask the page to reload settings so the count reflects the committed value.
       if (tabId !== undefined) {
         try { await chrome.tabs.sendMessage(tabId, {type: "SAF_REFRESH"}); }
@@ -124,7 +137,14 @@
   for (const radio of presentations) radio.addEventListener("change", () => {
     if (radio.checked) save({presentation: SAF.normalizePresentation(radio.value)});
   });
-  acceptCode.addEventListener("change", () => save({acceptAICode: acceptCode.checked}));
+  for (const [category, toggle] of categoryToggles) toggle.addEventListener("change", () => {
+    const checked = toggle.checked;
+    save(async () => {
+      // Merge inside the serialized write queue so rapid changes retain every toggle.
+      const latest = await SAF.getSettings();
+      return {filterCategories: {...latest.filterCategories, [category]: checked}};
+    });
+  });
   showChecked.addEventListener("change", () => save({showChecked: showChecked.checked}));
   autoIgnore.addEventListener("change", () => {
     const enabled = autoIgnore.checked;
@@ -182,8 +202,8 @@
       settings.presentation = SAF.normalizePresentation(changes.presentation.newValue);
       paint(settings.level); void refresh();
     }
-    if (changes.acceptAICode) {
-      settings.acceptAICode = SAF.normalizeAcceptAICode(changes.acceptAICode.newValue);
+    if (changes.filterCategories) {
+      settings.filterCategories = SAF.normalizeCategories(changes.filterCategories.newValue);
       paint(settings.level); void refresh();
     }
     if (changes.autoIgnore) { settings.autoIgnore = changes.autoIgnore.newValue === true; paint(settings.level); }
@@ -193,7 +213,6 @@
   });
   input.disabled = true;
   for (const radio of presentations) radio.disabled = true;
-  acceptCode.disabled = true;
   autoIgnore.disabled = true; showChecked.disabled = true;
   void (async () => {
     try {
@@ -206,7 +225,7 @@
       isStoreTab = Boolean(tab?.url?.startsWith("https://store.steampowered.com/"));
       tabId = tab?.id; await refresh(); input.disabled = false;
       for (const radio of presentations) radio.disabled = false;
-      acceptCode.disabled = false;
+      for (const toggle of categoryToggles.values()) toggle.disabled = false;
       autoIgnore.disabled = false; showChecked.disabled = false;
     } catch (e) { report(e); }
   })();

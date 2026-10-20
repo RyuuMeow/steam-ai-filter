@@ -97,7 +97,7 @@ var SAFIgnore;
             if (cache?.state === "disclosed" && SAFLookup.fresh(cache, this.now()))
                 item.disclosure = cache.disclosure;
             return this.active(settings) && item.expiresAt > this.now()
-                && SAF.shouldHide(item, settings.level, settings.allow, settings.acceptAICode);
+                && SAF.shouldHide(item, settings.level, settings.allow, settings.filterCategories);
         }
         async prune(settings) {
             const cache = await this.deps.cache();
@@ -162,7 +162,7 @@ var SAFIgnore;
                     if (!e || Object.hasOwn(this.state.done, e.id))
                         continue;
                     const old = this.state.queue.find(item => item.id === e.id);
-                    if (!SAF.shouldHide(e, settings.level, settings.allow, settings.acceptAICode)) {
+                    if (!SAF.shouldHide(e, settings.level, settings.allow, settings.filterCategories)) {
                         if (old)
                             this.state.queue = this.state.queue.filter(item => item !== old);
                         continue;

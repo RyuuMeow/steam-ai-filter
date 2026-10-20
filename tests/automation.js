@@ -9,7 +9,7 @@ if(new URLSearchParams(location.search).has('test'))(async()=>{
     await until(()=>frame.contentDocument?.querySelector('#auto-ignore')?.disabled===false&&card('5011').querySelector('.saf-checked'));
     popup=frame.contentDocument;
     assert(popup.querySelector('#strength').value==='2'&&popup.querySelector('[value=mask]').checked,'default disclosure plus masking');
-    assert(popup.querySelector('#accept-ai-code').checked&&popup.querySelector('#show-checked').checked&&!popup.querySelector('#auto-ignore').checked,'code accepted and green check on; auto-ignore off');
+    assert(popup.querySelector('#filter-art').checked&&!popup.querySelector('#filter-code').checked&&popup.querySelector('#show-checked').checked&&!popup.querySelector('#auto-ignore').checked,'art selected and green check on; auto-ignore off');
     assert(!Object.hasOwn(testBridge.data,'level')&&!Object.hasOwn(testBridge.data,'autoIgnore')&&fake.calls.length===0,'defaults require no migration write and no account request');
     assert(trailer.classList.contains('saf-blocked')&&trailer.querySelector(':scope>.saf-mask'),'single-game trailer parent is covered, including video, details and navigation');
     assert(trailer.querySelector('video').closest('.saf-blocked')===trailer,'video is part of the mask target, not merely its cover');

@@ -9,7 +9,8 @@ namespace SAF {
     disclosure: string | null;
     parseIssue: boolean;
   }
-  export interface Settings { level: Level; presentation: Presentation; acceptAICode: boolean; autoIgnore: boolean; showChecked: boolean; allow: Record<string, string> }
+  export type FilterCategories = Record<SAFDisclosure.Category, boolean>;
+  export interface Settings { level: Level; presentation: Presentation; filterCategories: FilterCategories; autoIgnore: boolean; showChecked: boolean; allow: Record<string, string> }
   export type PageKind = "home" | "search" | "app" | "store";
   export interface Status {
     kind: PageKind;
@@ -27,7 +28,7 @@ namespace SAF {
   export const levels = [
     {name: "關閉", description: "保留 Steam 原本的顯示方式。"},
     {name: "標示", description: "標示 AI 相關訊號，保留所有遊戲。"},
-    {name: "揭露", description: "遮蔽已披露使用 AI 的遊戲。"},
+    {name: "揭露", description: "遮蔽揭露中命中所選用途的遊戲。"},
     {name: "廣泛", description: "廣泛可能會遮蔽非 AI 生成內容。"}
   ] as const;
   export function normalizeLevel(value: unknown): Level {
@@ -37,8 +38,10 @@ namespace SAF {
   export function normalizePresentation(value: unknown): Presentation {
     return value === "remove" ? "remove" : "mask";
   }
-  export function normalizeAcceptAICode(value: unknown): boolean {
-    return value !== false;
+  export function normalizeCategories(value?: unknown): FilterCategories {
+    const saved = value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : null;
+    return Object.fromEntries(SAFDisclosure.categories.map(category =>
+      [category, saved ? saved[category] === true : category === "art"])) as FilterCategories;
   }
   export function cleanAllow(value: unknown): Record<string, string> {
     const result: Record<string, string> = {};
@@ -71,10 +74,11 @@ namespace SAF {
       return {ids: data.map(String), issue: false};
     } catch { return {ids: [], issue: true}; }
   }
-  export function shouldHide(e: Evidence, level: Level, allow: Record<string, string>, acceptAICode = true): boolean {
-    if (Object.hasOwn(allow, e.id) || level < 2) return false;
-    if (acceptAICode && SAFDisclosure.isCodeOnly(e.disclosure)) return false;
-    return Boolean(e.disclosure) || (level === 3 && e.tagMatch);
+  export function shouldHide(e: Evidence, level: Level, allow: Record<string, string>, selected = normalizeCategories()): boolean {
+    if (Object.hasOwn(allow, e.id) || level < 2 || !SAFDisclosure.categories.some(category => selected[category])) return false;
+    if (e.disclosure) return SAFDisclosure.classifyUses(e.disclosure).some(category => selected[category]);
+    // Broad mode is the explicit tag-only fallback; known disclosures use categories.
+    return level === 3 && e.tagMatch;
   }
   export function reason(e: Evidence): string {
     if (e.disclosure && e.tagMatch) return "AI 使用揭露 · 人工智慧標籤";
@@ -242,9 +246,9 @@ namespace SAF {
     return new Map(all.map(([el, e]) => [el, {...byId.get(e.id)!, title: e.title}]));
   }
   export async function getSettings(): Promise<Settings> {
-    const data = await chrome.storage.local.get(["level", "presentation", "acceptAICode", "autoIgnore", "showChecked", "allow"]);
+    const data = await chrome.storage.local.get(["level", "presentation", "filterCategories", "autoIgnore", "showChecked", "allow"]);
     return {level: normalizeLevel(data.level), presentation: normalizePresentation(data.presentation),
-      acceptAICode: normalizeAcceptAICode(data.acceptAICode), autoIgnore: data.autoIgnore === true,
+      filterCategories: normalizeCategories(data.filterCategories), autoIgnore: data.autoIgnore === true,
       showChecked: data.showChecked !== false, allow: cleanAllow(data.allow)};
   }
 }

@@ -2,7 +2,7 @@
   let appMatch = location.pathname.match(/^\/app\/(\d+)(?:\/|$)/);
   let kind = SAF.pageKind(location.pathname);
   if (document.getElementById("saf-root")) return;
-  let settings: SAF.Settings = {level: 2, presentation: "mask", acceptAICode: true, autoIgnore: false, showChecked: true, allow: {}};
+  let settings: SAF.Settings = {level: 2, presentation: "mask", filterCategories: SAF.normalizeCategories(), autoIgnore: false, showChecked: true, allow: {}};
   let revealing = false;
   let ready = false;
   let stopped = false;
@@ -195,8 +195,11 @@
     finally { if (!stopped) allowButton.disabled = false; }
   };
   function displayReason(e: SAF.Evidence): string {
-    return settings.acceptAICode && SAFDisclosure.isCodeOnly(e.disclosure)
-      ? "依揭露判斷：僅程式開發 · 已接受" : SAF.reason(e);
+    if (!e.disclosure) return SAF.reason(e);
+    const uses = SAFDisclosure.classifyUses(e.disclosure);
+    if (!uses.length) return "AI 使用揭露 · 用途未明";
+    const selected = uses.some(category => settings.filterCategories[category]);
+    return `AI 用途：${uses.map(category => SAFDisclosure.packs[category].label).join("、")}${selected ? "" : " · 未選取"}`;
   }
   reveal.onclick = () => { revealing = !revealing; render(); };
   function watchCard(card: Element) {
@@ -249,7 +252,7 @@
       else unknown++;
       if (requesting.has(evidence.id)) pending++;
       if (result?.state === "unavailable") failed++;
-      const hide = isCard && !revealing && SAF.shouldHide(evidence, settings.level, settings.allow, settings.acceptAICode);
+      const hide = isCard && !revealing && SAF.shouldHide(evidence, settings.level, settings.allow, settings.filterCategories);
       // Include newly accepted evidence too, so a queued older match can be cancelled.
       if (settings.autoIgnore) ignoreItems.set(evidence.id, evidence);
       if (hide) hidden++;
@@ -301,7 +304,7 @@
     }
     if (settings.autoIgnore && settings.level >= 2 && !document.hidden) {
       const items = [...ignoreItems.values()].slice(0, 1000);
-      const signature = JSON.stringify({items, level: settings.level, acceptAICode: settings.acceptAICode, allow: settings.allow});
+      const signature = JSON.stringify({items, level: settings.level, filterCategories: settings.filterCategories, allow: settings.allow});
       if (signature !== ignoreSignature || Date.now() - ignoreSentAt >= 30000) {
         ignoreSignature = signature; ignoreSentAt = Date.now();
         void send({type: "SAF_IGNORE_CANDIDATES", items}).then(result => {
@@ -404,12 +407,12 @@
       if (area !== "local" || !contextReady()) return;
       if (changes.level) { settings.level = SAF.normalizeLevel(changes.level.newValue); revealing = false; }
       if (changes.presentation) { settings.presentation = SAF.normalizePresentation(changes.presentation.newValue); revealing = false; }
-      if (changes.acceptAICode) { settings.acceptAICode = SAF.normalizeAcceptAICode(changes.acceptAICode.newValue); revealing = false; }
+      if (changes.filterCategories) { settings.filterCategories = SAF.normalizeCategories(changes.filterCategories.newValue); revealing = false; }
       if (changes.autoIgnore) { settings.autoIgnore = changes.autoIgnore.newValue === true; ignoreSignature = ""; }
       if (changes.showChecked) settings.showChecked = changes.showChecked.newValue !== false;
       if (changes.allow) settings.allow = SAF.cleanAllow(changes.allow.newValue);
       if (changes.disclosureCache) readCache(changes.disclosureCache.newValue);
-      if (ready && (changes.level || changes.presentation || changes.acceptAICode || changes.autoIgnore || changes.showChecked || changes.allow || changes.disclosureCache)) {
+      if (ready && (changes.level || changes.presentation || changes.filterCategories || changes.autoIgnore || changes.showChecked || changes.allow || changes.disclosureCache)) {
         render();
         if (dialog.open && currentDialog) openReason(currentDialog);
       }

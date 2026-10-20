@@ -1,0 +1,70 @@
+const frame = document.querySelector('iframe');
+frame.addEventListener('load', () => {
+  new ResizeObserver(() => { frame.style.height = `${frame.contentDocument.body.scrollHeight + 8}px`; }).observe(frame.contentDocument.body);
+});
+document.querySelector('.catalog').addEventListener('click', event => event.preventDefault());
+if (new URLSearchParams(location.search).has('test')) (async () => {
+  const out=document.querySelector('#test-results'), wait=ms=>new Promise(r=>setTimeout(r,ms));
+  const until=async fn=>{for(let i=0;i<160;i++){if(fn())return;await wait(25);}throw Error('Timed out waiting for state');};
+  const assert=(ok,label)=>{if(!ok)throw Error(label);out.textContent+=`PASS ${label}\n`;};
+  const popup=()=>frame.contentDocument, toggle=category=>popup().querySelector(`#filter-${category}`);
+  const card=id=>document.querySelector(`#${id}`), hidden=id=>card(id).classList.contains('saf-removed')||card(id).classList.contains('saf-blocked');
+  const count=()=>document.querySelectorAll('.saf-removed,.saf-blocked').length;
+  const set=async values=>{await chrome.storage.local.set(values);await wait(100);};
+  const artOnly={art:true,music:false,voice:false,text:false,translation:false,code:false};
+  try {
+    await until(()=>toggle('art')?.disabled===false&&count()===2);
+    assert(toggle('art').checked&&['music','voice','text','translation','code'].every(c=>!toggle(c).checked),'art alone is selected by default');
+    assert(testBridge.data.filterCategories===undefined&&!popup().querySelector('#accept-ai-code'),'legacy control is removed and defaults need no migration write');
+    assert(!popup().querySelector('#filter-options').open,'category list starts collapsed');
+    popup().querySelector('#filter-options summary').click();
+    assert(popup().querySelector('#filter-options').open&&popup().querySelectorAll('#category-list input').length===6,'expansion exposes six labelled switches');
+    assert(['code','duplicate','negative','unclear','tagged'].every(id=>!hidden(id))&&hidden('mixed')&&hidden('not-code'),'selected mixed uses hide; negative, unknown and unselected disclosures remain visible');
+    assert(card('code').querySelector('.saf-badge').textContent.includes('程式碼 · 未選取'),'badge explains the inferred unselected use');
+    assert(card('unclear').querySelector('.saf-badge').textContent.includes('用途未明'),'unknown disclosure retains a visible badge');
+    assert(lookupCount===0,'cached classifications need no network lookup');
+    toggle('code').click();await until(()=>count()===5);
+    assert(testBridge.data.filterCategories.code&&popup().querySelector('#filter-selection').textContent==='已選 2 項','selecting code saves and updates summary');
+    assert(popup().querySelector('#status').textContent.includes('已剔除 5 / 7'),'popup count reflects selected categories');
+    toggle('code').click();await until(()=>count()===2);
+    assert(!hidden('code')&&lookupCount===0,'deselecting code restores both duplicate cards without refetching');
+    for(const [category,text] of [['music','AI background music.'],['voice','AI voice acting.'],['text','AI generated dialogue.'],['translation','AI translated dialogue.']]){
+      const node=card('not-code').cloneNode(true);node.id=category;node.href=`https://store.steampowered.com/app/${909+['music','voice','text','translation'].indexOf(category)}/`;
+      node.className='card';node.removeAttribute('inert');node.querySelector('i').textContent=text;node.querySelectorAll('.saf-badge,.saf-checked,.saf-mask').forEach(el=>el.remove());document.querySelector('.catalog').append(node);
+      await wait(180);assert(!hidden(category),`${category} is initially unselected`);
+      toggle(category).click();await until(()=>hidden(category));
+      assert(testBridge.data.filterCategories[category],`${category} pack independently filters its own disclosure`);
+      toggle(category).click();await until(()=>!hidden(category));
+    }
+    toggle('music').click();toggle('voice').click();toggle('translation').click();
+    await until(()=>testBridge.data.filterCategories.music&&testBridge.data.filterCategories.voice&&testBridge.data.filterCategories.translation);
+    assert(toggle('music').checked&&toggle('voice').checked&&toggle('translation').checked,'rapid toggles retain all queued selections');
+    const old=popup();frame.contentWindow.location.reload();await until(()=>popup()!==old&&toggle('art')?.disabled===false);
+    assert(toggle('voice').checked&&toggle('translation').checked&&!toggle('code').checked,'popup reopening restores the exact selection');
+    await set({filterCategories:artOnly});assert(toggle('art').checked&&!toggle('voice').checked&&count()===2,'another context synchronizes selection and page');
+    await set({level:3});assert(hidden('tagged')&&!hidden('unclear')&&!hidden('code'),'broad tags apply only without a formal disclosure');
+    await set({filterCategories:{}});assert(count()===0&&popup().querySelector('#filter-selection').textContent==='未選取','all switches off restores all cards even in broad mode');
+    await set({filterCategories:artOnly,level:2});
+    popup().querySelector('[value="mask"]').click();await until(()=>document.querySelectorAll('.saf-mask').length===2);
+    assert(!document.querySelector('.saf-removed')&&!hidden('translation'),'mask and removal share the same category decision');
+    await set({level:1});assert(count()===0&&popup().querySelector('#filter-options').hidden,'mark-only retains cards and hides inactive filtering controls');
+    await set({level:0});assert(!document.querySelector('.saf-badge,.saf-mask,.saf-removed'),'off restores the page');
+    await set({level:2,presentation:'remove'});
+    card('negative').querySelector('i').textContent='AI code and art.';await until(()=>hidden('negative'));
+    assert(hidden('negative'),'changed disclosure is reclassified');
+    card('negative').querySelector('i').textContent='AI programming. No AI art.';await until(()=>!hidden('negative'));
+    assert(!hidden('negative'),'removing positive art restores the same card');
+    const node=card('duplicate').cloneNode(true);node.id='late';node.href='https://store.steampowered.com/app/908/';node.querySelectorAll('.saf-badge,.saf-checked').forEach(el=>el.remove());document.querySelector('.catalog').append(node);
+    await until(()=>resolveCodeLookup);resolveCodeLookup({state:'disclosed',disclosure:'AI programming.',checkedAt:Date.now(),expiresAt:Date.now()+60000});
+    await until(()=>node.querySelector('.saf-badge')?.textContent.includes('未選取'));
+    assert(!hidden('late')&&lookupCount===1,'late cached result uses the current selection');
+    const storage=frame.contentWindow.chrome.storage.local, original=storage.set;
+    storage.set=async()=>{throw Error('Simulated storage failure');};toggle('code').click();await wait(120);
+    assert(!toggle('code').checked&&!popup().querySelector('#error').hidden&&!hidden('code'),'failed save rolls back to the committed selection');
+    storage.set=original;toggle('code').click();await until(()=>hidden('late'));
+    assert(popup().querySelector('#error').hidden&&hidden('code'),'retry clears the error and filters the late result');
+    await set({allow:{901:'Manual'}});assert(!hidden('code')&&!hidden('duplicate'),'manual allow wins over selected categories');
+    await set({filterCategories:undefined});assert(toggle('art').checked&&!toggle('code').checked&&count()===2,'deleting category preference restores art-only defaults');
+    out.textContent+='ALL CATEGORY TESTS PASSED';document.documentElement.dataset.tests='passed';
+  } catch(error) {out.textContent+=`FAIL ${error.stack}`;document.documentElement.dataset.tests='failed';}
+})();
