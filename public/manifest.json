@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Steam AI Filter",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "動態查詢 Steam 遊戲的 AI 揭露並保存在本機，依等級標示或遮蔽遊戲。",
   "permissions": ["storage"],
   "host_permissions": ["https://store.steampowered.com/*"],

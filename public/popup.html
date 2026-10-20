@@ -10,16 +10,10 @@
   <script src="popup.js" defer></script>
 </head>
 <body>
-  <!-- Primary: strength slider. Secondary: rule sentence. Tertiary: page status and exceptions.
-       Reference: white raised card, thick track, white rectangular thumb.
-       Scale: 4/8/12/16/24/32; type 12/14/16/20; two weights; generated blue/neutral/violet ramps. -->
   <main>
-    <section class="filter-card" data-level="1" aria-labelledby="filter-title">
-      <div class="card-heading">
-        <h1 id="filter-title">AI 過濾 <strong id="level-name">標示</strong></h1>
-        <span class="steam-label">STEAM</span>
-      </div>
-      <div class="slider-shell" id="slider-shell">
+    <section class="filter-control" data-level="1" aria-labelledby="filter-title">
+      <h1 id="filter-title">AI 過濾</h1>
+      <div class="slider-shell">
         <div class="track" aria-hidden="true">
           <div class="fill"></div>
           <div class="dots"><i></i><i></i><i></i><i></i></div>
@@ -28,18 +22,22 @@
           aria-label="AI 過濾等級" aria-valuetext="標示" aria-describedby="rule">
       </div>
       <div class="stops" aria-hidden="true"><span>關閉</span><span>標示</span><span>揭露</span><span>廣泛</span></div>
-      <p id="rule">標出 AI 揭露與人工智慧標籤，保留所有遊戲。</p>
+      <p id="rule">標示 AI 相關訊號，保留所有遊戲。</p>
     </section>
-    <div class="page-status">
-      <p id="status" role="status">正在讀取頁面…</p>
+    <div id="page-status" class="page-status" hidden>
+      <p id="status" role="status"></p>
       <button id="reveal" class="text-button" hidden>暫時顯示</button>
     </div>
-    <p id="coverage" class="coverage" hidden></p>
-    <button id="clear-cache" class="text-button">清除查詢快取</button>
     <p id="error" role="alert" hidden></p>
-    <details id="exceptions" hidden>
-      <summary>永遠顯示 <span id="allow-count"></span></summary>
-      <ul id="allow-list"></ul>
+    <details id="management">
+      <summary>管理</summary>
+      <p id="coverage" hidden></p>
+      <button id="clear-cache" class="text-button">清除查詢快取</button>
+      <p id="cache-result" role="status" hidden></p>
+      <section id="exceptions" aria-labelledby="exceptions-title" hidden>
+        <h2 id="exceptions-title">永遠顯示 <span id="allow-count"></span></h2>
+        <ul id="allow-list"></ul>
+      </section>
     </details>
   </main>
 </body>
