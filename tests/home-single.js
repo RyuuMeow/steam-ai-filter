@@ -1,0 +1,55 @@
+(async()=>{
+  if(!location.search.includes('test=1'))return;
+  const out=document.querySelector('#test-results'), wait=ms=>new Promise(r=>setTimeout(r,ms));
+  const assert=(value,label)=>{if(!value)throw Error(label);out.textContent+=`PASS ${label}\n`;};
+  const until=async fn=>{for(let i=0;i<80;i++){if(await fn())return;await wait(50);}throw Error('Timed out');};
+  const card=document.querySelector('#matched'),outer=document.querySelector('#matched-outer'),next=document.querySelector('#ordinary');
+  const height=e=>e.getBoundingClientRect().height;
+  try{
+    await until(()=>document.querySelector('.saf-blocked'));
+    assert(card.classList.contains('saf-blocked'),'mask includes recommendation title, buttons, gallery and price');
+    assert(SAF.cardId(card)==='3850550','text-only recommendation reason does not replace the target app identity');
+    assert(SAF.cardTitle(card,'3850550')==='待過濾推薦','whole recommendation keeps its own title');
+    assert(card.querySelectorAll('.saf-mask').length===1,'whole recommendation receives one mask');
+    assert(!next.classList.contains('saf-blocked'),'AI-tagged reference game does not contaminate a normal recommendation');
+    assert(!document.querySelector('#mixed').classList.contains('saf-blocked'),'mixed-game recommendation is never promoted');
+    const originalHeight=height(outer),originalNextTop=next.getBoundingClientRect().top;
+    await chrome.storage.local.set({presentation:'remove'});
+    assert(height(outer)===0&&height(card)===0,'remove collapses the complete recommendation and its padded outer wrapper');
+    assert(next.getBoundingClientRect().top<originalNextTop&&height(next)>0,'normal next recommendation moves up and stays visible');
+    assert(!document.querySelector('#recommendations').classList.contains('saf-removed-wrapper'),'shared recommendation list remains visible');
+    assert(height(document.querySelector('#extra-wrapper'))===0&&height(document.querySelector('#separate-content'))>0,'outer wrapper with unrelated content is preserved');
+    const shadow=document.querySelector('#saf-root').shadowRoot;
+    shadow.querySelector('#reveal').click();
+    assert(height(outer)===originalHeight&&!card.classList.contains('saf-removed'),'temporarily showing restores the whole recommendation');
+    shadow.querySelector('#reveal').click();
+    assert(height(outer)===0,'resuming filtering collapses the outer wrapper again');
+    await chrome.storage.local.set({allow:{'3850550':'待過濾推薦'}});
+    assert(height(outer)===originalHeight,'always-show exception restores header and outer spacing');
+    await chrome.storage.local.set({allow:{}});
+    assert(height(outer)===0,'removing the exception reapplies complete removal');
+    const gallery=card.querySelector('.home_content_items');
+    gallery.dataset.dsAppid='621';
+    for(const a of card.querySelectorAll('a[href*="/app/3850550/"]'))a.href='https://store.steampowered.com/app/621/';
+    await until(()=>height(outer)>0);
+    assert(!card.classList.contains('saf-removed'),'recycled target app restores the whole recommendation');
+    gallery.dataset.dsAppid='3850550';
+    for(const a of card.querySelectorAll('a[href*="/app/621/"]'))a.href='https://store.steampowered.com/app/3850550/';
+    await until(()=>height(outer)===0);
+    assert(true,'recycled target re-enters filtering when it matches');
+    // A recommendation reason containing another game image is not merely explanatory text.
+    const reason=card.querySelector('.home_content_reason');
+    reason.insertAdjacentHTML('beforeend',`<img src="${art}" alt="另一款遊戲封面">`);
+    await until(()=>height(outer)>0);
+    assert(!card.classList.contains('saf-removed'),'reason containing extra artwork prevents whole-container promotion');
+    reason.querySelector('img').remove();
+    await until(()=>height(outer)===0);
+    await chrome.storage.local.set({level:1});
+    assert(height(outer)===originalHeight&&!card.classList.contains('saf-blocked'),'mark-only mode restores the complete block');
+    await chrome.storage.local.set({level:3,presentation:'mask'});
+    assert(card.classList.contains('saf-blocked')&&!outer.classList.contains('saf-removed-wrapper'),'mask mode restores outer spacing and covers header');
+    await chrome.storage.local.set({level:0});
+    assert(height(outer)===originalHeight&&card.getAttribute('role')==='button'&&card.tabIndex===0,'off restores original dimensions and accessibility');
+    out.textContent+='ALL HOME SINGLE TESTS PASSED';document.documentElement.dataset.tests='passed';
+  }catch(e){out.textContent+=`FAIL ${e.stack}`;document.documentElement.dataset.tests='failed';console.error(e);}
+})();

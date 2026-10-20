@@ -1,0 +1,19 @@
+<!doctype html><html lang="zh-Hant"><meta charset="utf-8">
+<title>首頁完整推薦區塊測試</title><link rel="stylesheet" href="/dist/content.css">
+<style>
+body{max-width:1100px;margin:24px auto;padding:0 20px;background:#172b3c;color:#e7f0f8;font:15px/1.5 system-ui}
+a{color:inherit}.home_content_single_ctn{padding-bottom:30px}.home_content.single{padding:18px;background:#10202e}
+.single_header_ctn{display:flex;justify-content:space-between;gap:20px;margin-bottom:18px}.single_title{margin:0}
+.single_buttonbar{display:flex;align-items:start;gap:12px}.home_content_items{display:flex;gap:16px;height:180px}
+.home_content_items img{height:180px;width:320px;object-fit:cover}.discount_block_ctn{text-align:right;padding-top:12px}
+pre{white-space:pre-wrap;font:12px/1.6 monospace;color:#a1e5b5}button{cursor:pointer}
+</style>
+<h1>首頁單款推薦 · 完整容器</h1>
+<p>合成測試：推薦理由連到另一款遊戲，命中時整塊收起；正常相鄰遊戲保持可見。</p>
+<div id="recommendations"></div><pre id="test-results"></pre>
+<script src="/tests/bridge.js"></script><script src="/dist/lookup.js"></script>
+<script src="/tests/home-single-setup.js"></script>
+<script src="/dist/disclosure-keywords.js"></script><script src="/dist/disclosure.js"></script>
+<script src="/dist/core.js"></script><script src="/dist/mask.js"></script>
+<script src="/dist/layout.js"></script><script src="/dist/content.js"></script>
+<script src="/tests/home-single.js"></script></html>

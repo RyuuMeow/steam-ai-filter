@@ -94,6 +94,9 @@ namespace SAF {
     return null;
   }
   export function readEvidence(scope: Element | Document, id: string, title: string): Evidence {
+    // A homepage recommendation's reason describes a different, previously played
+    // game. Only its product gallery contributes tags/disclosure to this card.
+    if (scope instanceof Element) scope = singleRecommendation(scope)?.gallery || scope;
     const raw = scope instanceof Element ? scope.getAttribute("data-ds-tagids") : null;
     const parsed = parseTagIds(raw);
     const nested = Array.from(scope.querySelectorAll("[data-ds-tagids]"))
@@ -135,16 +138,37 @@ namespace SAF {
     }
     return element.getAttribute("data-ds-itemkey")?.match(/^App_([1-9]\d{0,9})$/i)?.[1] || null;
   }
-  function ownerIds(element: Element): Set<string> {
+  function rawOwnerIds(element: Element, ignored: Element | null = null): Set<string> {
     const ids = new Set<string>();
     const own = directCardId(element);
     if (own) ids.add(own);
     for (const child of element.querySelectorAll(ownerSelector)) {
+      if (ignored?.contains(child)) continue;
       const id = directCardId(child);
       if (id) ids.add(id);
       if (ids.size > 1) break;
     }
     return ids;
+  }
+  function singleRecommendation(element: Element): {id: string; gallery: Element} | null {
+    if (!element.matches(".home_content.single")) return null;
+    const galleries = element.querySelectorAll(":scope > .home_content_items");
+    const headers = element.querySelectorAll(":scope > .single_header_ctn");
+    if (galleries.length !== 1 || headers.length !== 1) return null;
+    const reasons = headers[0].querySelectorAll(":scope > .single_title_ctn > .home_content_reason");
+    if (reasons.length > 1) return null;
+    const reason = reasons[0] || null;
+    // Only a text reference is exempt. Extra artwork or another actual game card
+    // must retain the mixed-game protection.
+    if (reason?.querySelector("img, video, [style*='background-image'], [data-ds-appid], [data-appid], [data-app-id], [data-ds-itemkey]")) return null;
+    const gallery = galleries[0], ids = rawOwnerIds(gallery);
+    if (ids.size !== 1) return null;
+    const id = [...ids][0], rest = rawOwnerIds(element, reason);
+    return rest.size === 1 && rest.has(id) ? {id, gallery} : null;
+  }
+  function ownerIds(element: Element): Set<string> {
+    const single = singleRecommendation(element);
+    return single ? new Set([single.id]) : rawOwnerIds(element);
   }
   export function cardId(card: Element): string | null {
     const ids = ownerIds(card);
@@ -179,9 +203,10 @@ namespace SAF {
         });
         // Steam's expanded card contains trailers with separate movie IDs. The
         // explicit game-card boundary is stronger evidence than media URL equality.
-        const wholeObject = parent.matches(".LibraryAssetExpandedDisplay, .carousel__slide, .trailercarousel");
+        const single = singleRecommendation(parent);
+        const wholeObject = Boolean(single) || parent.matches(".LibraryAssetExpandedDisplay, .carousel__slide, .trailercarousel");
         if (wholeObject || (details.media > mediaCount && sameGameAssets) || directCardId(parent) === id) { card = parent; mediaCount = details.media; }
-        if (parent.matches(".carousel__slide, .trailercarousel")) break;
+        if (single || parent.matches(".carousel__slide, .trailercarousel")) break;
       }
       candidates.add(card);
     }
@@ -191,6 +216,10 @@ namespace SAF {
     });
   }
   export function removalContainer(card: Element): Element {
+    if (singleRecommendation(card)) {
+      const wrapper = card.parentElement;
+      return wrapper?.matches(".home_content_single_ctn") && wrapper.children.length === 1 ? wrapper : card;
+    }
     if (!card.matches(".LibraryAssetExpandedDisplay")) return card;
     const row = card.closest(".SaleSectionContainer");
     // A section can also contain several games: only collapse a single expanded row.
@@ -198,7 +227,7 @@ namespace SAF {
       && !row.querySelector("nav, [role=navigation], h1, h2") && cardId(row) === cardId(card) ? row : card;
   }
   export function cardTitle(card: Element, id: string): string {
-    return card.querySelector(".title, .app_name, .tab_item_title, .tab_item_name, .recommendation_title")?.textContent?.trim()
+    return card.querySelector(".title, .app_name, .tab_item_title, .tab_item_name, .recommendation_title, .single_title")?.textContent?.trim()
       || card.querySelector("img[alt]")?.getAttribute("alt")?.trim() || `App ${id}`;
   }
   export function mergeEvidence(entries: Iterable<[Element, Evidence]>): Map<Element, Evidence> {
