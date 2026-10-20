@@ -16,15 +16,16 @@
     document.querySelector('main').append(card); return card;
   };
   try {
-    await until(() => document.querySelector('.saf-blocked'));
+    const removeMode = testBridge.data.presentation === 'remove';
+    await until(() => document.querySelector(removeMode ? '.saf-removed' : '.saf-blocked'));
     await wait(100);
     assert(!lifecycleProbe.errors.length, 'closed popup receiver is an expected nonfatal condition');
-    assert(document.querySelector('.card img').inert, 'known match starts with an accessible opaque mask');
+    assert(removeMode ? document.querySelector('.card').getBoundingClientRect().height === 0 : document.querySelector('.card img').inert, 'known match starts in the selected presentation');
     lifecycleProbe.armed = true;
     if (lifecycleCase === 'id') chrome.runtime.id = undefined;
     if (lifecycleCase === 'storage') {
       chrome.storage.local.get = () => { throw new Error('Extension context invalidated.'); };
-      document.querySelector('.saf-mask').click();
+      document.querySelector('#saf-root').shadowRoot.querySelector('#list button').click();
       document.querySelector('#saf-root').shadowRoot.querySelector('#allow').click();
     } else addCard(602);
     if (lifecycleCase === 'pending') {
@@ -34,7 +35,7 @@
     }
     await wait(450);
     assert(!lifecycleProbe.errors.length, `invalidation produces no uncaught error (${lifecycleProbe.errors.join('; ')})`);
-    assert(!document.querySelector('.saf-mask,.saf-badge'), 'old masks and badges are removed');
+    assert(!document.querySelector('.saf-mask,.saf-badge,.saf-removed') && document.querySelector('.card').getBoundingClientRect().height > 0, 'all cards are restored, without old masks, removals or badges');
     assert(!document.querySelector('.card img').inert && !document.querySelector('.card').hasAttribute('role'), 'original card accessibility is restored');
     const shadow = document.querySelector('#saf-root').shadowRoot;
     assert(shadow.querySelector('#stat').textContent.includes('重新整理'), 'one visible refresh instruction replaces obsolete controls');
@@ -44,7 +45,7 @@
     document.dispatchEvent(new Event('visibilitychange'));
     window.dispatchEvent(new PopStateEvent('popstate'));
     await wait(450);
-    assert(lifecycleProbe.calls === calls && !document.querySelector('.saf-mask,.saf-badge'), 'later DOM and visibility events cannot restart the dead instance');
+    assert(lifecycleProbe.calls === calls && !document.querySelector('.saf-mask,.saf-badge,.saf-removed'), 'later DOM and visibility events cannot restart the dead instance');
     out.textContent += `ALL INVALIDATION TESTS PASSED (${lifecycleCase})`;
     document.documentElement.dataset.tests = 'passed';
   } catch (error) {

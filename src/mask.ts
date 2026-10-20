@@ -1,9 +1,12 @@
 namespace SAF {
   interface Original { label: string | null; role: string | null; tab: string | null; children: Map<HTMLElement, {inert: boolean; aria: string | null}> }
   const originals = new WeakMap<Element, Original>();
-  export function syncMask(card: Element, evidence: Evidence | null): void {
+  export function syncMask(card: Element, evidence: Evidence | null, presentation: Presentation = "mask"): void {
     const mask = card.querySelector<HTMLElement>(":scope > .saf-mask");
-    if (!evidence) {
+    const removed = Boolean(evidence && presentation === "remove");
+    // Keep Steam's DOM ownership intact so changing modes, recycled cards and recovery all work.
+    card.classList.toggle("saf-removed", removed);
+    if (!evidence || removed) {
       mask?.remove();
       card.classList.remove("saf-blocked", "saf-positioned");
       const original = originals.get(card);
@@ -17,6 +20,7 @@ namespace SAF {
         }
         originals.delete(card);
       }
+      if (removed) for (const media of card.querySelectorAll<HTMLMediaElement>("video, audio")) media.pause();
       return;
     }
     let original = originals.get(card);

@@ -1,5 +1,6 @@
 namespace SAF {
   export type Level = 0 | 1 | 2 | 3;
+  export type Presentation = "mask" | "remove";
   export interface Evidence {
     id: string;
     title: string;
@@ -8,7 +9,7 @@ namespace SAF {
     disclosure: string | null;
     parseIssue: boolean;
   }
-  export interface Settings { level: Level; allow: Record<string, string> }
+  export interface Settings { level: Level; presentation: Presentation; allow: Record<string, string> }
   export type PageKind = "home" | "search" | "app" | "store";
   export interface Status {
     kind: PageKind;
@@ -21,6 +22,7 @@ namespace SAF {
     failed?: number;
     mainMatched?: boolean;
     revealing: boolean;
+    presentation: Presentation;
   }
   export const levels = [
     {name: "關閉", description: "保留 Steam 原本的顯示方式。"},
@@ -31,6 +33,9 @@ namespace SAF {
   export function normalizeLevel(value: unknown): Level {
     return typeof value === "number" && Number.isInteger(value) && value >= 0 && value <= 3
       ? value as Level : 1;
+  }
+  export function normalizePresentation(value: unknown): Presentation {
+    return value === "remove" ? "remove" : "mask";
   }
   export function cleanAllow(value: unknown): Record<string, string> {
     const result: Record<string, string> = {};
@@ -193,7 +198,7 @@ namespace SAF {
     return new Map(all.map(([el, e]) => [el, {...byId.get(e.id)!, title: e.title}]));
   }
   export async function getSettings(): Promise<Settings> {
-    const data = await chrome.storage.local.get(["level", "allow"]);
-    return {level: normalizeLevel(data.level), allow: cleanAllow(data.allow)};
+    const data = await chrome.storage.local.get(["level", "presentation", "allow"]);
+    return {level: normalizeLevel(data.level), presentation: normalizePresentation(data.presentation), allow: cleanAllow(data.allow)};
   }
 }

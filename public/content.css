@@ -1,4 +1,5 @@
 .saf-positioned, .saf-badge-positioned { position: relative !important; }
+.saf-removed.saf-removed { display: none !important; }
 .saf-blocked { isolation: isolate; cursor: pointer !important; }
 .saf-blocked > :not(.saf-mask) { opacity: 0 !important; pointer-events: none !important; }
 .saf-blocked::before, .saf-blocked::after { visibility: hidden !important; }

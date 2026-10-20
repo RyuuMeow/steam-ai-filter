@@ -21,6 +21,10 @@ test('invalid storage values do not activate broad filtering', () => {
   assert.equal(S.normalizeLevel(0),0);
   assert.deepEqual(Object.keys(S.cleanAllow({'42':'Valid','__proto__':'no',abc:'no',43:5})),['42']);
 });
+test('removal requires an explicit saved selection; legacy and corrupt values retain masks', () => {
+  assert.equal(S.normalizePresentation('remove'), 'remove');
+  for (const value of [undefined, null, false, true, 1, 'delete', {}, 'mask']) assert.equal(S.normalizePresentation(value), 'mask');
+});
 test('exact multilingual tag match, not title keywords or combat AI', () => {
   for (const text of ['人工智慧','人工智能',' Artificial   Intelligence ']) assert.equal(S.isAITag(text),true);
   for (const text of ['AI','AI companion','Artificial Intelligence Simulator','Railway']) assert.equal(S.isAITag(text),false);

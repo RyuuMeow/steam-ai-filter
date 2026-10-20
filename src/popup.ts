@@ -2,12 +2,14 @@
   const input = document.querySelector<HTMLInputElement>("#strength")!;
   const control = document.querySelector<HTMLElement>(".filter-control")!;
   const rule = document.querySelector<HTMLElement>("#rule")!;
+  const presentationControl = document.querySelector<HTMLElement>("#presentation")!;
+  const presentations = Array.from(document.querySelectorAll<HTMLInputElement>('input[name="presentation"]'));
   const pageStatus = document.querySelector<HTMLElement>("#page-status")!;
   const status = document.querySelector<HTMLElement>("#status")!;
   const coverage = document.querySelector<HTMLElement>("#coverage")!;
   const reveal = document.querySelector<HTMLButtonElement>("#reveal")!;
   const error = document.querySelector<HTMLElement>("#error")!;
-  let settings: SAF.Settings = {level: 1, allow: {}};
+  let settings: SAF.Settings = {level: 1, presentation: "mask", allow: {}};
   let tabId: number | undefined;
   let isStoreTab = false;
   let writeQueue = Promise.resolve();
@@ -21,7 +23,9 @@
     control.dataset.level = String(level);
     control.style.setProperty("--fraction", String(level / 3));
     input.value = String(level);
-    rule.textContent = SAF.levels[level].description;
+    rule.textContent = SAF.levels[level].description.replace("遮蔽", settings.presentation === "remove" ? "剔除" : "遮蔽");
+    presentationControl.hidden = level < 2;
+    for (const radio of presentations) radio.checked = radio.value === settings.presentation;
     input.setAttribute("aria-valuetext", SAF.levels[level].name);
     if (changed) {
       control.classList.remove("sweep");
@@ -58,10 +62,11 @@
       const data: SAF.Status = await chrome.tabs.sendMessage(tabId, {type: "SAF_STATUS"});
       if (!data || !["app", "home", "search", "store"].includes(data.kind)) throw new Error("Unsupported page");
       pageStatus.hidden = settings.level === 0;
+      const action = data.presentation === "remove" ? "剔除" : "遮蔽";
       status.textContent = data.total === 0 ? "本頁未找到可識別的遊戲卡片。" : data.kind === "app"
-        ? `${data.mainMatched ? "這款遊戲有符合的訊號" : "本頁未取得 AI 使用訊號"}${data.hidden ? `；其他遊戲已遮蔽 ${data.hidden} 筆` : ""}`
+        ? `${data.mainMatched ? "這款遊戲有符合的訊號" : "本頁未取得 AI 使用訊號"}${data.hidden ? `；其他遊戲已${action} ${data.hidden} 筆` : ""}`
         : data.revealing ? `暫時顯示全部 ${data.total} 筆`
-        : settings.level === 1 ? `已標示 ${data.matched} / ${data.total} 筆` : `已遮蔽 ${data.hidden} / ${data.total} 筆`;
+        : settings.level === 1 ? `已標示 ${data.matched} / ${data.total} 筆` : `已${action} ${data.hidden} / ${data.total} 筆`;
       reveal.hidden = data.hidden === 0 && !data.revealing;
       reveal.textContent = data.revealing ? "恢復過濾" : "暫時顯示";
       coverage.hidden = settings.level === 0;
@@ -74,19 +79,22 @@
       reveal.hidden = true; coverage.hidden = true;
     }
   }
-  input.addEventListener("input", () => paint(SAF.normalizeLevel(Number(input.value))));
-  input.addEventListener("change", () => {
-    const level = SAF.normalizeLevel(Number(input.value));
+  function save(update: Partial<Pick<SAF.Settings, "level" | "presentation">>) {
     writeQueue = writeQueue.then(async () => {
-      await chrome.storage.local.set({level});
-      settings.level = level; error.hidden = true;
+      await chrome.storage.local.set(update);
+      Object.assign(settings, update); error.hidden = true; paint(settings.level);
       // Ask the page to reload settings so the count reflects the committed value.
       if (tabId !== undefined) {
         try { await chrome.tabs.sendMessage(tabId, {type: "SAF_REFRESH"}); }
         catch { /* refresh below displays unsupported/disconnected status */ }
       }
       await refresh();
-    }).catch(report);
+    }).catch(e => { paint(settings.level); report(e); });
+  }
+  input.addEventListener("input", () => paint(SAF.normalizeLevel(Number(input.value))));
+  input.addEventListener("change", () => save({level: SAF.normalizeLevel(Number(input.value))}));
+  for (const radio of presentations) radio.addEventListener("change", () => {
+    if (radio.checked) save({presentation: SAF.normalizePresentation(radio.value)});
   });
   reveal.onclick = async () => {
     if (tabId === undefined) return;
@@ -120,14 +128,20 @@
       void refresh();
     }
     if (changes.allow) { settings.allow = SAF.cleanAllow(changes.allow.newValue); renderAllow(); }
+    if (changes.presentation) {
+      settings.presentation = SAF.normalizePresentation(changes.presentation.newValue);
+      paint(settings.level); void refresh();
+    }
   });
   input.disabled = true;
+  for (const radio of presentations) radio.disabled = true;
   void (async () => {
     try {
       settings = await SAF.getSettings(); paint(settings.level); renderAllow();
       const [tab] = await chrome.tabs.query({active: true, currentWindow: true});
       isStoreTab = Boolean(tab?.url?.startsWith("https://store.steampowered.com/"));
       tabId = tab?.id; await refresh(); input.disabled = false;
+      for (const radio of presentations) radio.disabled = false;
     } catch (e) { report(e); }
   })();
 })();

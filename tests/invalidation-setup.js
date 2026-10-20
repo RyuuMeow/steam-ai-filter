@@ -1,5 +1,6 @@
 // Chrome API lifecycle simulation only; never shipped with the extension.
 testBridge.data.level = 3;
+testBridge.data.presentation = new URLSearchParams(location.search).has('remove') ? 'remove' : 'mask';
 chrome.runtime.id = 'fixture-extension';
 const lifecycleCase = new URLSearchParams(location.search).get('case') || 'sync';
 const lifecycleProbe = {calls: 0, errors: [], armed: false, settle: null};

@@ -2,7 +2,7 @@
   let appMatch = location.pathname.match(/^\/app\/(\d+)(?:\/|$)/);
   let kind = SAF.pageKind(location.pathname);
   if (document.getElementById("saf-root")) return;
-  let settings: SAF.Settings = {level: 1, allow: {}};
+  let settings: SAF.Settings = {level: 1, presentation: "mask", allow: {}};
   let revealing = false;
   let ready = false;
   let stopped = false;
@@ -10,7 +10,7 @@
   let timer = 0;
   let currentDialog: SAF.Evidence | null = null;
   let previousStatus = "";
-  let status: SAF.Status = {kind, total: 0, hidden: 0, matched: 0, unknown: 0, revealing};
+  let status: SAF.Status = {kind, total: 0, hidden: 0, matched: 0, unknown: 0, revealing, presentation: settings.presentation};
   const entries = new Map<Element, SAF.Evidence>();
   let effective = new Map<Element, SAF.Evidence>();
   const watched = new WeakSet<Element>();
@@ -213,7 +213,7 @@
     }, {capture: true, signal: events.signal});
   }
   document.addEventListener("play", event => {
-    if (event.target instanceof HTMLMediaElement && event.target.closest(".saf-blocked")) event.target.pause();
+    if (event.target instanceof HTMLMediaElement && event.target.closest(".saf-blocked, .saf-removed")) event.target.pause();
   }, {capture: true, signal: events.signal});
   function render() {
     if (!contextReady()) return;
@@ -242,9 +242,10 @@
       if (hide) hidden++;
       if (isCard) {
         watchCard(element);
-        SAF.syncMask(element, hide ? evidence : null);
+        SAF.syncMask(element, hide ? evidence : null, settings.presentation);
         const existing = element.querySelector<HTMLElement>(".saf-badge");
-        if (settings.level === 0 || !match) existing?.remove();
+        const showBadge = settings.level !== 0 && match && !(hide && settings.presentation === "remove");
+        if (!showBadge) existing?.remove();
         else {
           const badge = existing || document.createElement("span");
           const text = SAF.reason(evidence) + (Object.hasOwn(settings.allow, evidence.id) ? " · 永遠顯示" : "");
@@ -266,19 +267,21 @@
           }
         }
         // Include any newly inserted badge in the mask's accessibility suppression.
-        if (hide) SAF.syncMask(element, evidence);
-        if (settings.level === 0 || !match) element.classList.remove("saf-badge-positioned");
+        if (hide && settings.presentation === "mask") SAF.syncMask(element, evidence);
+        if (!showBadge) element.classList.remove("saf-badge-positioned");
       }
     }
     const main = entries.get(document.documentElement);
     const mainMatched = Boolean(main?.disclosure || main?.tagMatch);
-    status = {kind, total: entries.size, hidden, matched, unknown, pending, checked, failed, mainMatched, revealing};
+    status = {kind, total: entries.size, hidden, matched, unknown, pending, checked, failed, mainMatched, revealing, presentation: settings.presentation};
     bar.hidden = settings.level === 0 || !entries.size;
     host.style.display = bar.hidden ? "none" : "";
     if (settings.level === 0 && dialog.open) dialog.close();
+    const action = settings.presentation === "remove" ? "剔除" : "遮蔽";
     stat.textContent = main
-      ? `${mainMatched ? "這款遊戲有符合的訊號" : "本頁未取得 AI 使用訊號"}${entries.size > 1 ? `；其他遊戲已遮蔽 ${hidden} 筆` : ""}`
-      : revealing ? `暫時顯示全部 ${entries.size} 筆` : `已遮蔽 ${hidden} / ${entries.size} 筆`;
+      ? `${mainMatched ? "這款遊戲有符合的訊號" : "本頁未取得 AI 使用訊號"}${hidden ? `；其他遊戲已${action} ${hidden} 筆` : ""}`
+      : revealing ? `暫時顯示全部 ${entries.size} 筆`
+      : settings.level === 1 ? `已標示 ${matched} / ${entries.size} 筆` : `已${action} ${hidden} / ${entries.size} 筆`;
     const issues = Array.from(entries.values()).filter(e => e.parseIssue).length;
     note.textContent = !main || entries.size > 1
       ? `背景確認 ${pending} 筆；${checked} 筆未找到披露；${unknown} 筆尚未確認。${failed ? ` ${failed} 筆查詢暫不可用。` : ""}未找到披露不代表沒有使用 AI。${issues ? ` ${issues} 筆標籤格式無法讀取。` : ""}`
@@ -359,9 +362,10 @@
     chrome.storage.onChanged.addListener((changes, area) => {
       if (area !== "local" || !contextReady()) return;
       if (changes.level) { settings.level = SAF.normalizeLevel(changes.level.newValue); revealing = false; }
+      if (changes.presentation) { settings.presentation = SAF.normalizePresentation(changes.presentation.newValue); revealing = false; }
       if (changes.allow) settings.allow = SAF.cleanAllow(changes.allow.newValue);
       if (changes.disclosureCache) readCache(changes.disclosureCache.newValue);
-      if (ready && (changes.level || changes.allow || changes.disclosureCache)) render();
+      if (ready && (changes.level || changes.presentation || changes.allow || changes.disclosureCache)) render();
     });
     chrome.runtime.onMessage.addListener((message, _sender, respond) => {
       if (!contextReady()) return;
