@@ -49,8 +49,43 @@ npm run package:check
 `package:check` 比較檔案清單與內容，確認安裝包和目前建置一致，不修改檔案。
 GitHub Actions 執行 Node 測試、型別檢查、建置及安裝包比對；瀏覽器 fixture 仍需依上方連結在本機執行，未包含在 CI 中。
 
-發版時同步修改 `package.json`、`package-lock.json` 及 `public/manifest.json` 的版本，更新 README 與驗證紀錄，再重建安裝包。
-可將 `extension/` 的內容放進一個 `steam-ai-filter/` 資料夾後壓縮，作為 GitHub Release 的獨立安裝包。
+## 自動發版
+
+首次將 repo 上傳 GitHub 後，推送與插件版本一致的標籤：
+
+```sh
+git push origin main
+git tag v0.7.1
+git push origin v0.7.1
+```
+
+[Release workflow](../.github/workflows/release.yml) 會：
+
+1. 比對標籤、`package.json`、lockfile 及兩份 manifest 的版本。
+2. 執行型別檢查、Node 測試與建置，確認 `extension/` 與建置內容完全一致。
+3. 產生 `steam-ai-filter-v版本.rar`，測試壓縮檔並實際解壓，比對每個檔案的內容及路徑。
+4. 建立 GitHub Release，**只上傳這個插件 RAR**。
+
+RAR 根目錄直接包含 `manifest.json`、程式、樣式與圖示，不含原始碼、文件、測試或多餘的 `extension/` 外層。
+GitHub 另外自動顯示的 **Source code (zip/tar.gz)** 連結由平台提供；一般使用者下載 RAR 即可。
+流程使用 GitHub 內建的 `GITHUB_TOKEN`，不需要另建 token。遠端 Actions 結果可在 repo 的 **Actions → Release** 查看。
+
+下次發版時，先同步修改 `package.json`、`package-lock.json`（包含根 package 版本）及 `public/manifest.json`，更新 README 與驗證紀錄，執行 `npm run package` 並提交 `extension/`。再推送新的 `v版本號` 標籤。
+標籤不符、安裝包過期或驗證失敗都會停止發版；已存在的 Release 不會被覆寫。若流程在發布前失敗，修復環境後可重新執行該 workflow；程式碼修正則使用新版本標籤。
+
+### 本機產生 RAR
+
+本機需有 RAR CLI（Windows 可使用已安裝 WinRAR 附帶的 `Rar.exe`）：
+
+```sh
+npm run package:rar
+npm run release:check -- v0.7.1
+```
+
+產物為 `artifacts/steam-ai-filter-v0.7.1.rar`，打包時也會檢查 `extension/` 是否過期。
+Windows 會自動尋找標準 WinRAR 安裝位置；其他位置可用 `RAR_BIN` 環境變數指定執行檔。Linux 使用 PATH 中的 `rar`，CI 從 Ubuntu 套件庫安裝。
+
+發版依據：[GitHub CLI release create](https://cli.github.com/manual/gh_release_create)、[Ubuntu 24.04 RAR 套件](https://packages.ubuntu.com/noble/rar)。
 
 ## 上傳 GitHub
 

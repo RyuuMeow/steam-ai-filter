@@ -1,0 +1,50 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Verify release version
+        id: release
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: npm run release:check -- "$RELEASE_TAG"
+      - run: npm ci
+      - run: npm run check
+      - name: Install RAR
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends --yes rar
+      - name: Build and verify plugin RAR
+        run: npm run package:rar
+      - name: Publish plugin RAR
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+          RELEASE_ASSET: ${{ steps.release.outputs.asset }}
+        run: |
+          gh release create "$RELEASE_TAG" "$RELEASE_ASSET" \
+            --repo "$GITHUB_REPOSITORY" \
+            --verify-tag \
+            --title "Steam AI Filter $RELEASE_TAG" \
+            --notes-file .github/release-notes.md \
+            --latest

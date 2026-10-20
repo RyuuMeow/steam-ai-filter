@@ -2,7 +2,7 @@
 
 在 Chrome 瀏覽 Steam 商店時，依商品頁的 AI 使用揭露過濾遊戲。可以遮蔽卡片、直接剔除，也可以只加上標示。
 
-目前版本 **v0.7.1**。Repo 已附上編譯好的插件，安裝不需要 Node.js。
+目前版本 **v0.7.1**。從 **Releases** 下載插件 RAR，解壓後即可載入，安裝不需要 Node.js。
 
 - **四檔過濾**：關閉、標示、揭露、廣泛。
 - **兩種呈現**：遮蔽保留版面，剔除收起完整遊戲區塊。
@@ -13,21 +13,22 @@
 
 ### 1. 下載並解壓縮
 
-在 GitHub 此頁點選 **Code → Download ZIP**，將下載的 ZIP 完整解壓縮。
+在 GitHub 此頁右側開啟 **Releases**，進入最新版本，在 **Assets** 下載 **`steam-ai-filter-v0.7.1.rar`**。
 
-開啟解壓後的資料夾，找到 **[extension/](extension/)**。這是稍後要選取的插件資料夾，裡面直接有 `manifest.json`。
+將 RAR **解壓縮至同名資料夾**（例如 WinRAR 的「解壓縮至 steam-ai-filter-v0.7.1\\」）。這個資料夾就是稍後要選取的插件，裡面直接有 `manifest.json`。
 
 ```text
-steam-ai-filter/
-├── README.md
-├── extension/       ← 在 Chrome 選這一層
-│   ├── manifest.json
-│   └── ...
-├── src/
+steam-ai-filter-v0.7.1/  ← 在 Chrome 選這一層
+├── manifest.json
+├── background.js
+├── popup.html
+├── icons/
 └── ...
 ```
 
-如果下載的是獨立插件包 `steam-ai-filter-v0.7.1.zip`，解壓後選 **steam-ai-filter/** 即可。判斷方式相同：選取的資料夾內必須直接看到 `manifest.json`，不要選 ZIP 檔。
+選取的資料夾內必須直接看到 `manifest.json`，不要選 RAR 檔。
+
+若尚未建立 Release，也可用 **Code → Download ZIP** 下載 repo，完整解壓後選取其中的 **[extension/](extension/)**。
 
 ### 2. 開啟 Chrome 擴充功能頁面
 
@@ -103,5 +104,7 @@ npm run dev
 - `extension/`：可直接安裝的編譯產物，由 `npm run package` 更新。
 - `tests/`：Node 測試與離線瀏覽器測試頁。
 - `docs/`：使用規則、開發指引、設計及驗證紀錄。
+
+推送 `v版本號` 標籤會自動執行檢查並建立 GitHub Release，附件只有插件本體的 RAR。詳見[自動發版](docs/development.md#自動發版)。
 
 [開發與驗證指引](docs/development.md) · [設計與模組分工](docs/design.md) · [v0.7.1 驗證紀錄](docs/validation.md)
