@@ -214,11 +214,15 @@ var SAF;
         return ids.size === 1 ? [...ids][0] : null;
     }
     SAF.cardId = cardId;
+    function cardMedia(element) {
+        return [...element.querySelectorAll("img, video, [style*='background-image']")]
+            .filter(media => !media.closest(".saf-mask, .saf-badge, .saf-checked, .saf-remask"));
+    }
     function collectCards(root, _kind) {
         const metadata = new Map();
         const info = (el) => {
             if (!metadata.has(el))
-                metadata.set(el, { ids: ownerIds(el), media: el.querySelectorAll("img, video, [style*='background-image']").length });
+                metadata.set(el, { ids: ownerIds(el), media: cardMedia(el).length });
             return metadata.get(el);
         };
         const candidates = new Set();
@@ -243,7 +247,7 @@ var SAF;
                     break;
                 if (parent.querySelector("a[href*='/bundle/'], a[href*='/sub/'], nav, [role=navigation]"))
                     break;
-                const extraMedia = [...parent.querySelectorAll("img, video, [style*='background-image']")].filter(m => !card.contains(m));
+                const extraMedia = cardMedia(parent).filter(m => !card.contains(m));
                 const sameGameAssets = extraMedia.length > 0 && extraMedia.every(m => {
                     const source = m.getAttribute("data-image-url") || m.getAttribute("src") || m.getAttribute("poster") || m.getAttribute("style") || "";
                     return source.match(/\/steam\/apps\/([1-9]\d{0,9})\//)?.[1] === id;

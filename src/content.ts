@@ -241,6 +241,11 @@
     const image = document.createElement("img"); image.alt = "";
     image.src = chrome.runtime.getURL(`icons/${name}.svg`); return image;
   }
+  function chip(name: string, text: string): HTMLSpanElement {
+    const chip = document.createElement("span"), label = document.createElement("span");
+    chip.className = `saf-chip saf-chip-${name}`; label.className = "saf-chip-label"; label.textContent = text;
+    chip.append(icon(name), label); return chip;
+  }
   function watchCard(card: Element) {
     if (watched.has(card)) return;
     watched.add(card);
@@ -321,11 +326,9 @@
           const labels: SAF.FilterCategory[] = uses.length ? [...uses] : ["unknown"];
           const signature = settings.language + labels.join(",");
           if (badge.dataset.uses !== signature) {
-            const ai = document.createElement("span"); ai.className = "saf-chip saf-chip-ai"; ai.append(icon("ai"), "AI");
-            badge.replaceChildren(ai);
+            badge.replaceChildren(chip("ai", "AI"));
             for (const category of labels) {
-              const chip = document.createElement("span"); chip.className = `saf-chip saf-chip-${category}`;
-              chip.append(icon(category), SAF.categoryLabel(category)); badge.append(chip);
+              badge.append(chip(category, SAF.categoryLabel(category)));
             }
             badge.dataset.uses = signature;
           }

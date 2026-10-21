@@ -85,8 +85,13 @@ if(location.search.includes('test=1'))(async()=>{
       doc.querySelector('[data-open=language]').click();
     }
     doc.querySelector('#back').click();doc.querySelector('#back').click();
-    await set({mode:'mark',language:'en'});
+    await set({mode:'mark',language:'en',filterCategories:{art:true,unknown:true}});
     assert(card.querySelector('.saf-badge').textContent==='AIArtCode'&&card.querySelector('.saf-checked-matched'),'matched cards use translated chips and amber check');
+    const narrow=document.querySelector('#unclear');narrow.style.width='100px';narrow.style.overflow='visible';
+    const nb=narrow.getBoundingClientRect(),badge=narrow.querySelector('.saf-badge'),bb=badge.getBoundingClientRect(),edge=getComputedStyle(badge,'::before');
+    assert(bb.left+parseFloat(edge.left)>=nb.left&&bb.right-parseFloat(edge.right)<=nb.right&&bb.top+parseFloat(edge.top)>=nb.top&&bb.bottom-parseFloat(edge.bottom)<=nb.bottom,'soft rectangle stays inside a narrow card even when overflow is visible');
+    assert([...badge.querySelectorAll('.saf-chip')].every(chip=>chip.getBoundingClientRect().right<=nb.right),'long translated chips remain within a narrow card');
+    narrow.style.removeProperty('width');narrow.style.removeProperty('overflow');
     assert(document.querySelector('#code .saf-checked')&&!document.querySelector('#code .saf-checked-matched'),'completed unselected use stays green');
     card.querySelector('.saf-badge').click();
     const shadow=document.querySelector('#saf-root').shadowRoot;
@@ -108,10 +113,12 @@ if(location.search.includes('test=1'))(async()=>{
     await until(()=>testBridge.data.mode==='mask');assert(slider.value==='2','keyboard advances by exactly one mode');
     doc.querySelector('#settings').click();doc.querySelector('[data-open=network]').click();
     const select=doc.querySelector('#request-gap-trigger'),list=doc.querySelector('#request-gap-options');
+    const nextTop=doc.querySelector('#concurrency-trigger').getBoundingClientRect().top,bodyHeight=doc.body.scrollHeight;
     await pointer({type:'click',...point(select,true)});
     assert(!list.hidden&&select.getAttribute('aria-expanded')==='true','dropdown opens with trusted input');
     const sr=select.getBoundingClientRect(),lr=list.getBoundingClientRect();
-    assert(lr.top>=sr.bottom&&lr.left>=0&&lr.right<=320&&lr.bottom<=frame.clientHeight,'all dropdown options expand below the field and fit the popup');
+    assert(lr.top>=sr.bottom&&lr.left>=0&&lr.right<=320&&lr.bottom<=frame.clientHeight,'all dropdown options float below the field and fit the popup');
+    assert(list.matches(':popover-open')&&doc.querySelector('#concurrency-trigger').getBoundingClientRect().top===nextTop&&doc.body.scrollHeight===bodyHeight,'floating dropdown does not push other controls or resize the panel');
     await pointer({type:'click',...point(list.children[2],true)});await until(()=>testBridge.data.requestGap===2000);
     assert(list.hidden&&select.textContent.includes('2 seconds')&&doc.activeElement===select,'clicking an option saves and restores focus');
     const key=value=>select.dispatchEvent(new KeyboardEvent('keydown',{key:value,bubbles:true,cancelable:true}));
@@ -122,6 +129,10 @@ if(location.search.includes('test=1'))(async()=>{
     assert(list.hidden&&testBridge.data.requestGap===5000&&!select.hasAttribute('aria-activedescendant')&&escape.defaultPrevented,'Escape discards the draft option without dismissing the extension popup');
     key('Enter');key('Tab');assert(list.hidden,'Tab closes the list without trapping focus');
     key('Enter');await pointer({type:'click',...point(doc.querySelector('#page-title'),true)});assert(list.hidden,'outside click closes the list');
+    const lower=doc.querySelector('#concurrency-trigger');await pointer({type:'click',...point(lower,true)});
+    const lowerList=doc.querySelector('#concurrency-options'),lowerBounds=lowerList.getBoundingClientRect();
+    assert(lowerBounds.top>=0&&lowerBounds.bottom<=lower.getBoundingClientRect().top&&lowerList.clientHeight===lowerList.scrollHeight,'lower dropdown floats upward when that side fits the full list');
+    lower.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}));
     doc.querySelector('#back').click();doc.querySelector('[data-open=checking]').click();
     for(const locale of ['zh-Hant','zh-Hans','en']) {
       await set({language:locale});

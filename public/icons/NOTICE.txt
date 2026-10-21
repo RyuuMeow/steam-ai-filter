@@ -1,23 +1,22 @@
-UI SVG icons: Linea Iconset, CC0 1.0 Universal.
-Source: https://github.com/linea-io/Linea-Iconset
-License: https://github.com/linea-io/Linea-Iconset/blob/master/LICENSE
-Full license: linea.LICENSE.txt.
+UI SVG icons: Tabler Icons, MIT License.
+Source: https://github.com/tabler/tabler-icons
+License: https://github.com/tabler/tabler-icons/blob/main/LICENSE
+Full license: tabler.LICENSE.txt.
 
-Original geometry is retained. SVG export metadata is removed; stroke width
-is set to 5 on the 64-unit grid and viewBox to -4 -4 72 72 for small UI sizes.
+SVG geometry, 24px viewBox, 2px strokes and rounded caps/joins are unmodified.
 
 Local file       Original source path
-settings.svg     _basic/_SVG/basic_gear.svg
-eye.svg          _basic/_SVG/basic_eye.svg
-ai.svg           _basic/_SVG/basic_star.svg
-art.svg          _basic/_SVG/basic_picture.svg
-music.svg        _music/_SVG/music_note_single.svg
-voice.svg        _music/_SVG/music_microphone.svg
-text.svg         _basic/_SVG/basic_message_txt.svg
-translation.svg  _basic/_SVG/basic_world.svg
-code.svg         _basic/_SVG/basic_keyboard.svg
-unknown.svg      _basic/_SVG/basic_question.svg
-back.svg         _arrows/_SVG/arrows_slim_left.svg
-right.svg        _arrows/_SVG/arrows_right.svg
-down.svg         _arrows/_SVG/arrows_down.svg
-check.svg        _arrows/_SVG/arrows_check.svg
+settings.svg     icons/outline/settings.svg
+eye.svg          icons/outline/eye.svg
+ai.svg           icons/outline/sparkles.svg
+art.svg          icons/outline/photo.svg
+music.svg        icons/outline/music.svg
+voice.svg        icons/outline/microphone.svg
+text.svg         icons/outline/writing.svg
+translation.svg  icons/outline/language.svg
+code.svg         icons/outline/code.svg
+unknown.svg      icons/outline/help.svg
+back.svg         icons/outline/arrow-left.svg
+right.svg        icons/outline/chevron-right.svg
+down.svg         icons/outline/chevron-down.svg
+check.svg        icons/outline/check.svg

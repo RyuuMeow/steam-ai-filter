@@ -12,6 +12,8 @@ body {
   font: 14px/1.5 "Segoe UI", "Microsoft JhengHei", system-ui, sans-serif;
 }
 main { width: 100%; }
+/* Stable room for floating menus, without moving the fields when one opens. */
+html[data-view]:not([data-view="home"]) body { min-height: 400px; }
 .filter-control {
   --start: var(--blue-light); --end: var(--blue);
   transition: --start var(--motion), --end var(--motion);
@@ -36,7 +38,8 @@ h1:focus { outline: none; }
 .select-trigger img { flex: 0 0 18px; width: 18px; height: 18px; opacity: .65; transition: transform 140ms; }
 .select-trigger[aria-expanded="true"] { border-color: var(--blue-deep); }
 .select-trigger[aria-expanded="true"] img { transform: rotate(180deg); }
-.select-options { margin-top: 6px; padding: 4px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+.select-options { position: fixed; inset: auto; margin: 0; padding: 4px; overflow: auto; overscroll-behavior: contain; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--ink); font: 400 14px/1.5 "Segoe UI", "Microsoft JhengHei", system-ui, sans-serif; box-shadow: 0 8px 24px #22243524, 0 2px 6px #22243510; }
+.select-options::backdrop { background: transparent; }
 .select-option { position: relative; padding: 10px 32px 10px 10px; border-radius: 6px; cursor: pointer; }
 .select-option:hover, .select-option.is-active { background: #edf3ff; }
 .select-option[aria-selected="true"] { color: var(--blue-deep); font-weight: 600; }
@@ -99,7 +102,8 @@ input:disabled { cursor: wait; }
 .toggle-row input:focus-visible { outline-offset: 3px; }
 .toggle-row input:disabled { cursor: wait; opacity: .5; }
 #filter-options { margin-top: 24px; padding-top: 20px; border-top: 1px solid #22243512; }
-#filter-title { margin-bottom: 8px; }
+#filter-title { margin-bottom: 12px; font-size: 14px; font-weight: 650; color: var(--supporting); }
+#category-list .toggle-row > span { font-weight: 400; }
 #category-list .toggle-row { min-height: 36px; }
 #ignore-status { white-space: pre-line; overflow-wrap: anywhere; margin: 8px 0; }
 [data-level="0"] { --start: #c5ccd6; --end: #8893a3; }

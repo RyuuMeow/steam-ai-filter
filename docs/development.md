@@ -44,7 +44,7 @@ npm run test:browser
 
 原始碼導覽及取捨見 [design.md](design.md)，驗證紀錄見 [validation.md](validation.md)。
 
-圖示原始包保留於 [assets/steam_ai_filter_chrome_icons.zip](../assets/steam_ai_filter_chrome_icons.zip)；正式插件打包 `public/icons/` 中的 16、32、48、128px PNG，以及 Linea CC0 框線 SVG 與來源授權。
+圖示原始包保留於 [assets/steam_ai_filter_chrome_icons.zip](../assets/steam_ai_filter_chrome_icons.zip)；正式插件打包 `public/icons/` 中的 16、32、48、128px PNG，以及 Tabler MIT 框線 SVG 與來源授權。
 
 ## 更新安裝包
 
@@ -66,8 +66,8 @@ GitHub Actions 執行 Node 測試、型別檢查、建置及安裝包比對；�
 
 ```sh
 git push origin main
-git tag v0.10.1
-git push origin v0.10.1
+git tag v0.10.2
+git push origin v0.10.2
 ```
 
 [Release workflow](../.github/workflows/release.yml) 會：
@@ -84,7 +84,7 @@ GitHub 另外自動顯示的 **Source code (zip/tar.gz)** 連結由平台提供�
 下次發版時，先同步修改 `package.json`、`package-lock.json`（包含根 package 版本）及 `public/manifest.json`，更新 README 與驗證紀錄，執行 `npm run package` 並提交 `extension/`。再推送新的 `v版本號` 標籤。
 標籤不符、安裝包過期或驗證失敗都會停止發版；已存在的 Release 不會被覆寫。若流程在發布前失敗，修復環境後可重新執行該 workflow；程式碼修正則使用新版本標籤。
 
-若標籤已存在但尚未建立 Release，可到 **Actions → Release → Run workflow**，選擇 `main`，在 `tag` 填入既有版本標籤（例如 `v0.10.1`）。
+若標籤已存在但尚未建立 Release，可到 **Actions → Release → Run workflow**，選擇 `main`，在 `tag` 填入既有版本標籤（例如 `v0.10.2`）。
 流程會取出該標籤的程式碼，執行相同的版本檢查、測試及 RAR 驗證，不會更改標籤。
 
 ### 本機產生 RAR
@@ -93,10 +93,10 @@ GitHub 另外自動顯示的 **Source code (zip/tar.gz)** 連結由平台提供�
 
 ```sh
 npm run package:rar
-npm run release:check -- v0.10.1
+npm run release:check -- v0.10.2
 ```
 
-產物為 `artifacts/steam-ai-filter-v0.10.1.rar`，打包時也會檢查 `extension/` 是否過期。
+產物為 `artifacts/steam-ai-filter-v0.10.2.rar`，打包時也會檢查 `extension/` 是否過期。
 Windows 會自動尋找標準 WinRAR 安裝位置；其他位置可用 `RAR_BIN` 環境變數指定執行檔。Linux 使用 PATH 中的 `rar`，CI 從 Ubuntu 套件庫安裝。
 
 發版依據：[GitHub CLI release create](https://cli.github.com/manual/gh_release_create)、[Ubuntu 24.04 RAR 套件](https://packages.ubuntu.com/noble/rar)。

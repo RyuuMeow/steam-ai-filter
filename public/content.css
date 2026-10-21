@@ -38,19 +38,20 @@
 @media (hover: none) { .saf-mask-actions { opacity: 1; } .saf-mask-label { opacity: 0; } }
 .saf-blocked:focus-visible { outline: 2px solid #80d7ff !important; outline-offset: 3px !important; }
 .saf-home-badge { position: absolute !important; left: 8px !important; bottom: 8px !important; z-index: 5 !important; max-width: calc(100% - 16px) !important; }
-.saf-home-badge::before { content: ""; position: absolute; inset: -16px -48px -20px -40px; background: radial-gradient(ellipse closest-side, #fff 0%, #fffffff5 58%, #ffffffa0 78%, #ffffff00 100%); pointer-events: none; z-index: -1; }
+.saf-home-badge::before { content: ""; position: absolute; inset: -6px; border-radius: 5px; background: #ffffff99; mask-image: linear-gradient(to right, transparent, #000 6px, #000 calc(100% - 6px), transparent), linear-gradient(to bottom, transparent, #000 6px, #000 calc(100% - 6px), transparent); mask-composite: intersect; pointer-events: none; z-index: -1; }
 .saf-badge {
   display: inline-flex !important; flex-wrap: wrap !important; gap: 4px !important;
   margin: 4px 0 0 !important; padding: 0 !important; border: 0 !important;
   background: transparent !important; cursor: pointer !important; white-space: normal !important;
 }
 .saf-chip {
-  display: inline-flex !important; align-items: center !important; gap: 4px !important; padding: 3px 9px 3px 6px !important; border: 0 !important; border-radius: 999px !important;
+  display: inline-flex !important; align-items: center !important; gap: 4px !important; padding: 3px 9px 3px 6px !important; border: 0 !important; border-radius: 999px !important; box-sizing: border-box !important; max-width: 100% !important;
   background: #34485b !important; color: #fff !important;
   font: 600 12px/1.5 "Segoe UI", "Microsoft JhengHei", sans-serif !important; white-space: nowrap !important;
 }
 .saf-chip-ai { background: #2563b6 !important; color: #fff !important; }
 .saf-chip-unknown { background: #705419 !important; color: #fff4d3 !important; }
+.saf-chip-label { min-width: 0 !important; overflow: hidden !important; text-overflow: ellipsis !important; }
 .saf-chip img, .saf-checked img { display: block !important; flex: 0 0 16px !important; width: 16px !important; height: 16px !important; min-height: 0 !important; max-width: none !important; margin: 0 !important; padding: 0 !important; border: 0 !important; background: none !important; box-shadow: none !important; filter: invert(1) !important; object-fit: contain !important; }
 .saf-badge:focus-visible { outline: 2px solid #80d7ff !important; outline-offset: 3px !important; border-radius: 5px !important; }
 .saf-checked {

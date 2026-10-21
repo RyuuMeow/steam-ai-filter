@@ -51,8 +51,22 @@ var SAF;
         if (!cover) {
             cover = document.createElement("span");
             cover.className = "saf-mask";
-            cover.innerHTML = '<span class="saf-mask-label" aria-hidden="true"></span><span class="saf-mask-actions"><button type="button" data-action="reveal"></button><button type="button" data-action="allow"></button><button type="button" data-action="ignore"></button></span><span class="saf-mask-status" role="status" hidden></span>';
+            cover.innerHTML = '<img class="saf-mask-art" alt="" aria-hidden="true" loading="lazy" decoding="async"><span class="saf-mask-label" aria-hidden="true"></span><span class="saf-mask-actions"><button type="button" data-action="reveal"></button><button type="button" data-action="allow"></button><button type="button" data-action="ignore"></button></span><span class="saf-mask-status" role="status" hidden></span>';
             card.append(cover);
+        }
+        // Reuse the existing cover image instead of continuously sampling the full
+        // page behind every card with backdrop-filter while Steam scrolls/animates.
+        const source = Array.from(card.querySelectorAll("img")).find(image => !image.closest(".saf-mask, .saf-badge, .saf-checked, .saf-remask"));
+        const art = cover.querySelector(".saf-mask-art");
+        const url = source?.getAttribute("src") || source?.currentSrc;
+        if (url) {
+            if (art.getAttribute("src") !== url)
+                art.src = url;
+            art.hidden = false;
+        }
+        else {
+            art.removeAttribute("src");
+            art.hidden = true;
         }
         const label = cover.querySelector(".saf-mask-label");
         if (label.textContent !== title)
@@ -62,8 +76,11 @@ var SAF;
             for (const name of ["reveal", "allow", "ignore"]) {
                 const button = cover.querySelector(`[data-action="${name}"]`);
                 const key = name === "ignore" && actions.ignored ? "mask.ignoreDone" : name === actions.pending ? "mask.ignorePending" : `mask.${name}`;
-                button.textContent = SAFI18n.t(key);
-                button.disabled = Boolean(actions.pending || (name === "ignore" && actions.ignored));
+                const text = SAFI18n.t(key), disabled = Boolean(actions.pending || (name === "ignore" && actions.ignored));
+                if (button.textContent !== text)
+                    button.textContent = text;
+                if (button.disabled !== disabled)
+                    button.disabled = disabled;
                 button.onclick = event => {
                     event.preventDefault();
                     event.stopPropagation();

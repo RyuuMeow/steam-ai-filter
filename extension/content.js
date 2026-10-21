@@ -20,6 +20,7 @@
     const entries = new Map();
     let effective = new Map();
     const watched = new WeakSet();
+    const rendered = new WeakMap();
     const dirty = new Set();
     const removalLayout = new SAF.RemovalLayout();
     const nearby = new Set();
@@ -84,7 +85,11 @@
         window.clearTimeout(retryTimer);
         if (!ready || !contextReady() || settings.mode === "off" || document.hidden)
             return;
-        const visibleEntries = [...nearby].filter(e => e.isConnected && entries.has(e));
+        const visibleEntries = [...nearby].filter(e => {
+            const evidence = effective.get(e) || entries.get(e);
+            return e.isConnected && evidence && !evidence.disclosure && !Object.hasOwn(settings.allow, evidence.id) &&
+                !resultFor(evidence.id) && !requesting.has(evidence.id);
+        });
         // Nearest cards are serviced first, independent of DOM/carousel order.
         visibleEntries.sort((a, b) => Math.abs(a.getBoundingClientRect().top) - Math.abs(b.getBoundingClientRect().top));
         for (const element of visibleEntries) {
@@ -331,6 +336,14 @@
         image.src = chrome.runtime.getURL(`icons/${name}.svg`);
         return image;
     }
+    function chip(name, text) {
+        const chip = document.createElement("span"), label = document.createElement("span");
+        chip.className = `saf-chip saf-chip-${name}`;
+        label.className = "saf-chip-label";
+        label.textContent = text;
+        chip.append(icon(name), label);
+        return chip;
+    }
     function watchCard(card) {
         if (watched.has(card))
             return;
@@ -423,8 +436,13 @@
             if (hide && settings.mode === "hide")
                 removed.push(element);
             if (isCard) {
+                const state = JSON.stringify([settings.mode, settings.language, settings.showChecked, evidence.id, evidence.title,
+                    evidence.disclosure, result?.state, match, hide, locallyShown, actionState.get(evidence.id)]);
+                if (rendered.get(element) === state)
+                    continue;
                 watchCard(element);
-                SAF.syncMask(element, hide ? evidence : null, SAF.presentation(settings.mode), maskActions(element, evidence));
+                if (!hide || settings.mode !== "mask")
+                    SAF.syncMask(element, hide ? evidence : null, SAF.presentation(settings.mode));
                 const existing = element.querySelector(".saf-badge");
                 const showBadge = settings.mode === "mark" && match;
                 if (!showBadge)
@@ -435,15 +453,9 @@
                     const labels = uses.length ? [...uses] : ["unknown"];
                     const signature = settings.language + labels.join(",");
                     if (badge.dataset.uses !== signature) {
-                        const ai = document.createElement("span");
-                        ai.className = "saf-chip saf-chip-ai";
-                        ai.append(icon("ai"), "AI");
-                        badge.replaceChildren(ai);
+                        badge.replaceChildren(chip("ai", "AI"));
                         for (const category of labels) {
-                            const chip = document.createElement("span");
-                            chip.className = `saf-chip saf-chip-${category}`;
-                            chip.append(icon(category), SAF.categoryLabel(category));
-                            badge.append(chip);
+                            badge.append(chip(category, SAF.categoryLabel(category)));
                         }
                         badge.dataset.uses = signature;
                     }
@@ -513,6 +525,7 @@
                     SAF.syncMask(element, evidence, "mask", maskActions(element, evidence));
                 if (!showBadge && !showCheck && !(locallyShown && match))
                     element.classList.remove("saf-badge-positioned");
+                rendered.set(element, state);
             }
         }
         if (settings.autoIgnore && SAF.filters(settings.mode) && !document.hidden) {
@@ -545,7 +558,7 @@
         shadow.querySelector("#matches").hidden = !showMatches && !mainMatched;
         // Shadow-root updates do not feed the page observer.
         list.replaceChildren();
-        for (const e of candidates.values()) {
+        for (const e of (showMatches || mainMatched) ? candidates.values() : []) {
             const li = document.createElement("li"), button = document.createElement("button");
             button.textContent = `${e.title} · ${displayReason(e)}${Object.hasOwn(settings.allow, e.id) ? t("allow.suffix") : ""}`;
             button.onclick = () => openReason(e);
@@ -580,6 +593,7 @@
                     revealed.delete(element);
                     hovered.delete(element);
                     hoverSuppressed.delete(element);
+                    rendered.delete(element);
                     visibility.unobserve(element);
                     nearby.delete(element);
                 }
@@ -587,6 +601,7 @@
             for (const card of cards) {
                 if (entries.has(card) && !dirty.has(card))
                     continue;
+                rendered.delete(card);
                 const id = SAF.cardId(card);
                 if (!id || !/^\d+$/.test(id)) {
                     SAF.syncMask(card, null);

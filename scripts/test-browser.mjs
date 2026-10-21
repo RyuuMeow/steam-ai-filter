@@ -134,6 +134,9 @@ try {
     await send('Input.dispatchMouseEvent',{type:'mouseReleased',...selectPoint.result.value,button:'left',clickCount:1});await delay(200);
     shot=await send('Page.captureScreenshot',{format:'png'});
     await writeFile('artifacts/browser-tests/preview-dropdown.png',Buffer.from(shot.data,'base64'));
+    await send('Page.navigate',{url:'http://127.0.0.1:4173/tests/home-single.html'});await delay(500);
+    shot=await send('Page.captureScreenshot',{format:'png'});
+    await writeFile('artifacts/browser-tests/preview-recommendation-mask.png',Buffer.from(shot.data,'base64'));
     console.log('Saved mode and settings screenshots in artifacts/browser-tests/.');
   }
 } finally { socket?.close();browser.kill();server.kill(); }
