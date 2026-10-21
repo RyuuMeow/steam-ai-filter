@@ -31,8 +31,10 @@ namespace SAF {
     if (!original) {
       original = {label: card.getAttribute("aria-label"), role: card.getAttribute("role"), tab: card.getAttribute("tabindex"), children: new Map()};
       originals.set(card, original);
-      if (getComputedStyle(card).position === "static") card.classList.add("saf-positioned");
     }
+    // A revealed card may still be positioned by its eye/check badge. Take over
+    // that containing block before render removes the badge's positioning class.
+    if (card.classList.contains("saf-badge-positioned") || getComputedStyle(card).position === "static") card.classList.add("saf-positioned");
     card.classList.add("saf-blocked");
     const title = SAFI18n.t("mask.label");
     card.setAttribute("aria-label", SAFI18n.t("mask.aria", {title: evidence.title}));

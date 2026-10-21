@@ -28,11 +28,14 @@ if(location.search.includes('test=1'))(async()=>{
     const eye=card.querySelector('.saf-remask');await until(()=>eye.querySelector('img').complete);
     assert(eye.querySelector('img').naturalWidth>0&&eye.getAttribute('aria-label')==='恢復遮蔽','eye uses a loaded asset with an accessible name');
     eye.click();assert(masked(card)&&!card.querySelector('.saf-remask'),'eye restores masking');
+    assert(getComputedStyle(card).position!=='static'&&card.querySelector('.saf-mask').getBoundingClientRect().width===card.getBoundingClientRect().width,'eye restore keeps the mask anchored to its own card');
     await set({hoverReveal:true});
     await pointer({type:'move',x:20,y:20});await pointer({type:'move',...point(card)});
     assert(!masked(card)&&card.querySelector('.saf-remask'),'hover reveal displays the card temporarily');
     await pointer({type:'move',x:20,y:20});
     assert(masked(card)&&!Object.hasOwn(testBridge.data.allow,'902'),'pointer leave remasks without creating an exception');
+    const bounds=card.getBoundingClientRect(),cover=card.querySelector('.saf-mask').getBoundingClientRect();
+    assert(Math.abs(bounds.width-cover.width)<1&&Math.abs(bounds.height-cover.height)<1&&Math.abs(bounds.left-cover.left)<1&&Math.abs(bounds.top-cover.top)<1,'restored mask stays inside a card whose original position is static');
     await pointer({type:'move',...point(card)});
     const event=new MouseEvent('click',{bubbles:true,cancelable:true});card.dispatchEvent(event);
     await pointer({type:'move',x:20,y:20});
