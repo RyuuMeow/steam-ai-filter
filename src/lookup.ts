@@ -1,5 +1,6 @@
 namespace SAFLookup {
   export type State = "disclosed" | "not-found" | "unavailable";
+  export type CacheDays = 0 | 1 | 7 | 30;
   export interface Result { state: State; disclosure: string | null; checkedAt: number; expiresAt: number; issue?: string }
   export interface Stored { version: 1; items: Record<string, Result>; cooldownUntil: number; sessionAware?: boolean }
   export const validId = (id: unknown): id is string => typeof id === "string" && /^[1-9]\d{0,9}$/.test(id);
@@ -7,13 +8,20 @@ namespace SAFLookup {
   export function unavailable(now: number, issue: string, retry = 300000): Result {
     return {state: "unavailable", disclosure: null, checkedAt: now, expiresAt: now + retry, issue};
   }
-  export function fresh(value: unknown, now: number): value is Result {
+  export function validResult(value: unknown, now: number): value is Result {
     if (!value || typeof value !== "object") return false;
     const r = value as Result;
     return ["disclosed", "not-found", "unavailable"].includes(r.state) &&
       Number.isFinite(r.checkedAt) && r.checkedAt <= now && Number.isFinite(r.expiresAt) &&
-      r.expiresAt > now && r.expiresAt <= now + 7 * DAY &&
+      r.expiresAt > r.checkedAt && r.expiresAt <= r.checkedAt + 30 * DAY &&
       (r.state === "disclosed" ? typeof r.disclosure === "string" && r.disclosure.length > 0 && r.disclosure.length <= 2000 : r.disclosure === null);
+  }
+  export function expiresAt(result: Result, days?: CacheDays): number {
+    if (days === undefined || result.state === "unavailable") return result.expiresAt;
+    return result.checkedAt + (days || (result.state === "disclosed" ? 7 : 1)) * DAY;
+  }
+  export function fresh(value: unknown, now: number, days?: CacheDays): value is Result {
+    return validResult(value, now) && expiresAt(value, days) > now;
   }
   function plain(html: string): string {
     const entities: Record<string, string> = {amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: " "};
@@ -55,6 +63,8 @@ namespace SAFLookup {
     fetch: (url: string, init: RequestInit) => Promise<Response>;
     now?: () => number;
     gap?: number;
+    concurrency?: number;
+    cacheDays?: CacheDays;
   }
   interface Job { id: string; resolve: (result: Result) => void; generation: number }
   export class Resolver {
@@ -77,7 +87,7 @@ namespace SAFLookup {
         if (data?.version !== 1) return;
         this.cooldownUntil = Number.isFinite(data.cooldownUntil) ? Math.min(data.cooldownUntil, this.now() + 3600000) : 0;
         for (const [id, result] of Object.entries(data.items || {}).slice(-500)) {
-          if (validId(id) && fresh(result, this.now()) && (result.state !== "unavailable" || data.sessionAware)) this.items[id] = result;
+          if (validId(id) && validResult(result, this.now()) && (result.state !== "unavailable" || data.sessionAware)) this.items[id] = result;
         }
       });
     }
@@ -85,7 +95,7 @@ namespace SAFLookup {
       if (!validId(id)) return unavailable(this.now(), "無效遊戲 ID");
       try { await this.initialized; } catch { return unavailable(this.now(), "快取讀取失敗"); }
       if (!this.enabled) return unavailable(this.now(), "過濾已關閉", 0);
-      if (fresh(this.items[id], this.now())) return this.items[id];
+      if (fresh(this.items[id], this.now(), this.options.cacheDays ?? 0)) return this.withPolicy(this.items[id]);
       if (this.cooldownUntil > this.now()) return unavailable(this.now(), "Steam 暫時限制查詢", this.cooldownUntil - this.now());
       const existing = this.pending.get(id);
       if (existing) return existing;
@@ -97,6 +107,18 @@ namespace SAFLookup {
     setEnabled(enabled: boolean) {
       this.enabled = enabled;
       if (!enabled) this.cancel();
+    }
+    configure(policy: {requestGap: number; concurrency: number; cacheDays: CacheDays}) {
+      this.options.gap = policy.requestGap;
+      this.options.concurrency = policy.concurrency;
+      this.options.cacheDays = policy.cacheDays;
+      if (this.timer) clearTimeout(this.timer);
+      this.timer = undefined;
+      // Lower limits drain active requests naturally; new work observes the latest policy.
+      this.pump();
+    }
+    private withPolicy(result: Result): Result {
+      return {...result, expiresAt: expiresAt(result, this.options.cacheDays ?? 0)};
     }
     private cancel() {
       this.generation++;
@@ -114,7 +136,8 @@ namespace SAFLookup {
     }
     private persist(): Promise<void> {
       const now = this.now();
-      const sorted = Object.entries(this.items).filter(([, r]) => fresh(r, now)).sort((a, b) => b[1].checkedAt - a[1].checkedAt).slice(0, 500);
+      const sorted = Object.entries(this.items).filter(([, r]) => fresh(r, now, this.options.cacheDays ?? 0))
+        .map(([id, result]) => [id, this.withPolicy(result)] as const).sort((a, b) => b[1].checkedAt - a[1].checkedAt).slice(0, 500);
       this.items = Object.fromEntries(sorted);
       const snapshot: Stored = {version: 1, items: {...this.items}, cooldownUntil: this.cooldownUntil, sessionAware: true};
       const write = this.writes.catch(() => undefined).then(() => this.options.save(snapshot));
@@ -122,7 +145,7 @@ namespace SAFLookup {
       return write;
     }
     private pump() {
-      if (!this.enabled || !this.queue.length || this.active.size >= 2 || this.timer) return;
+      if (!this.enabled || !this.queue.length || this.active.size >= (this.options.concurrency ?? 2) || this.timer) return;
       if (this.cooldownUntil > this.now()) {
         for (const job of this.queue.splice(0)) {
           this.pending.delete(job.id);
@@ -161,6 +184,7 @@ namespace SAFLookup {
       } catch {
         result = unavailable(this.now(), "頁面需要驗證、連線逾時或暫時無法存取");
       } finally { clearTimeout(timeout); }
+      result = this.withPolicy(result);
       if (job.generation === this.generation && this.enabled) {
         this.items[job.id] = result;
         try { await this.persist(); } catch { result = {...result, issue: "結果未能寫入快取"}; }

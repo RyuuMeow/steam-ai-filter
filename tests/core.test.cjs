@@ -6,25 +6,34 @@ const ctx = vm.createContext({});
 for (const file of ['disclosure-keywords', 'disclosure', 'core']) vm.runInContext(fs.readFileSync(`dist/${file}.js`, 'utf8'), ctx);
 const S = ctx.SAF;
 const evidence = (patch={}) => ({id:'42',title:'Test',tagMatch:false,tagAvailable:false,disclosure:null,parseIssue:false,...patch});
-test('all four levels: disclosure, tag-only and unknown', () => {
-  for (const level of [0,1,2,3]) {
-    assert.equal(S.shouldHide(evidence({disclosure:'AI-generated artwork'}), level, {}), level >= 2);
-    assert.equal(S.shouldHide(evidence({tagMatch:true}), level, {}), level === 3);
-    assert.equal(S.shouldHide(evidence(), level, {}), false);
+test('all modes require formal selected-use evidence; tag-only never matches', () => {
+  for (const mode of ['off','mark','mask','hide']) {
+    assert.equal(S.shouldHide(evidence({disclosure:'AI-generated artwork'}), mode, {}), ['mask','hide'].includes(mode));
+    assert.equal(S.shouldHide(evidence({tagMatch:true}), mode, {}), false);
+    assert.equal(S.shouldHide(evidence(), mode, {}), false);
+    assert.equal(S.shouldHide(evidence({disclosure:'AI art'}), mode, {'42':'Test'}), false);
   }
 });
-test('allowlist wins over every match and level', () => {
-  for (const level of [0,1,2,3]) assert.equal(S.shouldHide(evidence({disclosure:'yes',tagMatch:true}), level, {'42':'Test'}), false);
+test('legacy mode migration preserves action and never interprets broad as hide', () => {
+  for(const level of [0,1,2,3]) for(const presentation of ['mask','remove']) {
+    const expected=level===0?'off':level===1?'mark':presentation==='remove'?'hide':'mask';
+    const data={level,presentation,allow:{42:'Game'},autoIgnore:true,showChecked:false,filterCategories:{code:true}};
+    const result=S.normalizeSettings(data);
+    assert.equal(result.mode,expected);
+    assert.equal(result.filterCategories.code,true);assert.equal(result.filterCategories.unknown,false);
+    assert.equal(result.allow['42'],'Game');assert.equal(result.autoIgnore,true);assert.equal(result.showChecked,false);
+    assert.equal(S.normalizeSettings({...data,mode:'off',settingsVersion:2}).mode,'off');
+  }
+  assert.equal(S.normalizeSettings({}).mode,'mask');
 });
-test('invalid storage values do not activate broad filtering', () => {
-  for (const v of [-1,4,NaN,undefined,null,'3',1.5]) assert.equal(S.normalizeLevel(v), 2);
-  assert.equal(S.normalizeLevel(0),0);
+test('corrupt mode and query settings use conservative defaults', () => {
+  for(const value of [-1,4,NaN,null,'3',1.5,{},'broad']) assert.equal(S.normalizeMode(value),'mask');
+  const s=S.normalizeSettings({mode:'bad',requestGap:-1,concurrency:999,cacheDays:Infinity});
+  assert.equal(s.requestGap,700);assert.equal(s.concurrency,2);assert.equal(s.cacheDays,0);
+  assert.equal(S.normalizeSettings({requestGap:2000,concurrency:4,cacheDays:30}).cacheDays,30);
   assert.deepEqual(Object.keys(S.cleanAllow({'42':'Valid','__proto__':'no',abc:'no',43:5})),['42']);
 });
-test('removal requires an explicit saved selection; legacy and corrupt values retain masks', () => {
-  assert.equal(S.normalizePresentation('remove'), 'remove');
-  for (const value of [undefined, null, false, true, 1, 'delete', {}, 'mask']) assert.equal(S.normalizePresentation(value), 'mask');
-});
+
 test('exact multilingual tag match, not title keywords or combat AI', () => {
   for (const text of ['人工智慧','人工智能',' Artificial   Intelligence ']) assert.equal(S.isAITag(text),true);
   for (const text of ['AI','AI companion','Artificial Intelligence Simulator','Railway']) assert.equal(S.isAITag(text),false);

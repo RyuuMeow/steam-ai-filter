@@ -1,8 +1,18 @@
 // Test/preview only. This adapter is NEVER copied into the extension's dist directory.
 (() => {
   const owner = window.parent === window ? window : window.parent;
-  owner.testBridge ||= {data:{level:1,allow:{}}, changes:[], messages:[]};
+  owner.testBridge ||= {data:{mode:'mark',allow:{}}, changes:[], messages:[]};
   const bridge = owner.testBridge;
+  window.testDisclosure = (element, text='AI-generated artwork.') => {
+    let section=element.querySelector('.game_area_description');
+    if(!text) {section?.remove();return;}
+    if(!section) {section=document.createElement('section');section.className='game_area_description';section.hidden=true;section.innerHTML='<h2>AI Generated Content Disclosure</h2><i></i>';element.append(section);}
+    section.querySelector('i').textContent=text;
+  };
+  window.testSettings = async values => {
+    await chrome.storage.local.set(values);
+    await chrome.tabs.sendMessage(1, {type:'SAF_REFRESH'});
+  };
   window.chrome = {
     storage:{
       local:{

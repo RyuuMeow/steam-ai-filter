@@ -25,6 +25,57 @@ test('complete, correctly identified HTML: disclosure vs absent, never mature de
   assert.equal(no.state,'not-found');
   assert.equal(no.expiresAt-no.checkedAt,86400000);
 });
+
+test('cache policy recomputes existing successful results and keeps failure retry deadlines',()=>{
+  const day=86400000, now=1000, positive=S.parse(html('42','AI art.'),'42',now), negative=S.parse(html('43'),'43',now);
+  assert.equal(S.fresh(positive,now+2*day,1),false);
+  assert.equal(S.fresh(negative,now+2*day,7),true);
+  assert.equal(S.fresh(positive,now+20*day,30),true);
+  assert.equal(S.fresh(positive,now+30*day,30),false);
+  assert.equal(S.fresh(negative,now+day,0),false);
+  const failed=S.unavailable(now,'offline');
+  assert.equal(S.fresh(failed,now+300001,30),false);
+  assert.equal(S.fresh({...positive,expiresAt:Infinity},now,30),false);
+});
+
+test('30-day policy survives restart; shortening the interval refetches saved results',async()=>{
+  let now=1000,count=0;
+  const first=setup(async()=>{count++;return response(html('42','AI art.'));},{now:()=>now,cacheDays:30});
+  const result=await first.resolver.get('42');
+  assert.equal(result.expiresAt-result.checkedAt,30*86400000);
+  now+=15*86400000;
+  const second=setup(async()=>{count++;return response(html('42'));},{now:()=>now,cacheDays:30,load:async()=>first.saved()});
+  assert.equal((await second.resolver.get('42')).state,'disclosed');assert.equal(count,1);
+  second.resolver.configure({cacheDays:1,requestGap:0,concurrency:2});
+  assert.equal((await second.resolver.get('42')).state,'not-found');assert.equal(count,2);
+});
+
+test('live concurrency reduction drains active work and completion uses the latest cache policy',async()=>{
+  const releases=[],started=[];
+  const {resolver}=setup(url=>new Promise(resolve=>{started.push(url);releases.push(()=>resolve(response(html(url.match(/app\/(\d+)/)[1]))));}),{concurrency:3});
+  const requests=['1','2','3','4','5'].map(id=>resolver.get(id));
+  await new Promise(r=>setImmediate(r));assert.equal(started.length,3);
+  resolver.configure({requestGap:0,concurrency:1,cacheDays:30});
+  releases.shift()();await new Promise(r=>setImmediate(r));assert.equal(started.length,3);
+  releases.shift()();await new Promise(r=>setImmediate(r));assert.equal(started.length,3);
+  releases.shift()();await new Promise(r=>setImmediate(r));assert.equal(started.length,4);
+  releases.shift()();await new Promise(r=>setImmediate(r));assert.equal(started.length,5);
+  releases.shift()();
+  const results=await Promise.all(requests);
+  assert.ok(results.every(result=>result.expiresAt-result.checkedAt===30*86400000));
+});
+
+test('request spacing is shared across consumers and live policy changes retain server cooldown',async()=>{
+  const starts=[];
+  const {resolver}=setup(async url=>{starts.push(Date.now());return response(html(url.match(/app\/(\d+)/)[1]));},{gap:40,concurrency:4});
+  await Promise.all(['1','2','3'].map(id=>resolver.get(id)));
+  assert.ok(starts.slice(1).every((time,i)=>time-starts[i]>=35));
+  let calls=0;
+  const limited=setup(async()=>{calls++;return new Response('',{status:429,headers:{'Retry-After':'120'}});});
+  await limited.resolver.get('42');
+  limited.resolver.configure({requestGap:0,concurrency:4,cacheDays:30});
+  await limited.resolver.clear();await limited.resolver.get('43');assert.equal(calls,1);
+});
 test('redirect/age gate/truncated/changed layout/wrong app cannot poison negative cache', () => {
   for (const body of ['Age verification',html('43'),html('42').replace('</body></html>',''),
     html('42','yes').replace('id="game_area_content_descriptors"><h2>AI','id="changed"><h2>AI'),
@@ -171,4 +222,27 @@ test('background entrypoint validates senders and supports only fixed app IDs', 
   assert.equal((await get({type:'SAF_LOOKUP',id:'43'})).state,'unavailable');assert.equal(requests,1);
   assert.equal(listener({type:'SAF_CLEAR_CACHE'},sender,()=>{}),undefined);
   assert.equal((await new Promise(resolve=>listener({type:'SAF_CLEAR_CACHE'},{id:'extension',url:'chrome-extension://extension/popup.html'},resolve))).ok,true);
+});
+
+test('a delayed worker settings read cannot start a lookup after switching off',async()=>{
+  let listener,change,hold=false,release,calls=0;
+  const data={mode:'mask',allow:{}};
+  const worker=vm.createContext({setTimeout,clearTimeout,AbortController,AbortSignal,URL,URLSearchParams,structuredClone,console,
+    fetch:async()=>{calls++;return response(html('42','AI art.'));},
+    chrome:{runtime:{id:'extension',getURL:path=>'chrome-extension://extension/'+path,onMessage:{addListener:fn=>listener=fn}},
+      alarms:{get:async()=>undefined,create:async()=>{},clear:async()=>true,onAlarm:{addListener:()=>{}}},
+      storage:{local:{get:async keys=>{
+        const snapshot=structuredClone(data);
+        if(hold&&Array.isArray(keys)&&keys.includes('mode')){hold=false;await new Promise(resolve=>release=resolve);}
+        return snapshot;
+      },set:async values=>Object.assign(data,values)},onChanged:{addListener:fn=>change=fn}}}});
+  worker.importScripts=(...files)=>files.forEach(file=>vm.runInContext(fs.readFileSync('dist/'+file,'utf8'),worker));
+  vm.runInContext(fs.readFileSync('dist/background.js','utf8'),worker);
+  await new Promise(resolve=>setImmediate(resolve));
+  hold=true;
+  const lookup=new Promise(resolve=>listener({type:'SAF_LOOKUP',id:'42'},{id:'extension',url:'https://store.steampowered.com/'},resolve));
+  await new Promise(resolve=>setImmediate(resolve));
+  data.mode='off';change({mode:{newValue:'off'}},'local');
+  await new Promise(resolve=>setImmediate(resolve));release();
+  assert.equal((await lookup).state,'unavailable');assert.equal(calls,0);
 });

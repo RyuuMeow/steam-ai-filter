@@ -6,6 +6,24 @@ importScripts("lookup.js", "disclosure-keywords.js", "disclosure.js", "core.js",
         save: data => chrome.storage.local.set({ disclosureCache: data }),
         fetch: (url, init) => fetch(url, init)
     });
+    // Fail closed until persisted mode and query policy have been read.
+    resolver.setEnabled(false);
+    let policyRevision = 0;
+    let policyUpdate;
+    function updatePolicy() {
+        const revision = ++policyRevision;
+        policyUpdate = Promise.all([SAF.getSettings(), chrome.storage.local.get("ignoreState")]).then(([settings, stored]) => {
+            // A delayed storage read must never re-enable work after a newer off setting.
+            if (revision !== policyRevision)
+                return policyUpdate;
+            const until = stored.ignoreState?.cooldownUntil || 0;
+            resolver.setEnabled(settings.mode !== "off" && until <= Date.now());
+            resolver.configure(settings);
+            return { settings, until };
+        });
+        return policyUpdate;
+    }
+    void updatePolicy().catch(() => resolver.setEnabled(false));
     const ignoreAlarm = "saf-auto-ignore";
     const ignore = new SAFIgnore.Service({
         load: async () => (await chrome.storage.local.get("ignoreState")).ignoreState,
@@ -36,12 +54,17 @@ importScripts("lookup.js", "disclosure-keywords.js", "disclosure.js", "core.js",
     });
     void ignore.reconcile().catch(reportIgnoreFailure);
     chrome.storage.onChanged.addListener((changes, area) => {
-        if (area === "local" && changes.level)
-            resolver.setEnabled(changes.level.newValue !== 0);
-        const ignoreCooldown = changes.ignoreState?.newValue?.cooldownUntil || 0;
-        if (area === "local" && ignoreCooldown > Date.now())
+        if (area !== "local")
+            return;
+        if (changes.mode?.newValue === "off" || changes.level?.newValue === 0)
             resolver.setEnabled(false);
-        if (area === "local" && (changes.autoIgnore || changes.level || changes.allow || changes.filterCategories)) {
+        const ignoreCooldown = changes.ignoreState?.newValue?.cooldownUntil || 0;
+        if (ignoreCooldown > Date.now())
+            resolver.setEnabled(false);
+        if (SAF.settingKeys.some(key => changes[key]) || changes.ignoreState) {
+            void updatePolicy().catch(() => resolver.setEnabled(false));
+        }
+        if (changes.autoIgnore || changes.mode || changes.level || changes.presentation || changes.allow || changes.filterCategories || changes.cacheDays) {
             void ignore.reconcile().catch(reportIgnoreFailure);
         }
     });
@@ -71,14 +94,11 @@ importScripts("lookup.js", "disclosure-keywords.js", "disclosure.js", "core.js",
         }
         if (message?.type !== "SAF_LOOKUP" || !SAFLookup.validId(message.id))
             return;
-        void chrome.storage.local.get(["level", "allow", "ignoreState"]).then(async (settings) => {
-            const until = settings.ignoreState?.cooldownUntil || 0;
+        void updatePolicy().then(async ({ settings, until }) => {
             if (until > Date.now()) {
                 resolver.setEnabled(false);
                 return SAFLookup.unavailable(Date.now(), "Steam 要求稍後重試", until - Date.now());
             }
-            const enabled = settings.level !== 0;
-            resolver.setEnabled(enabled);
             if (Object.hasOwn(settings.allow || {}, message.id))
                 return SAFLookup.unavailable(Date.now(), "已設為永遠顯示", 0);
             return resolver.get(message.id);

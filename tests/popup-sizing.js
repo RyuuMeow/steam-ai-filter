@@ -19,14 +19,15 @@ frame.addEventListener('load', async () => {
       await wait();
       assert(doc.documentElement.scrollWidth === 320, 'measured popup has no horizontal overflow');
     }
-    doc.querySelector('#management summary').click();
+    doc.querySelector('#settings').click();
     await wait();
-    assert(Math.abs(doc.body.getBoundingClientRect().width - 320) < 1, 'management does not change popup width');
-    doc.querySelector('#management summary').click();
-    await frame.contentWindow.chrome.storage.local.set({level:2});
-    doc.querySelector('#filter-options summary').click();
-    await wait();
-    assert(doc.querySelector('#filter-options').open && doc.documentElement.scrollWidth === 320, 'expanded categories fit the 320px popup');
+    for(const category of ['checking','network','display','automation']) {
+      doc.querySelector(`[data-open="${category}"]`).click();await wait();
+      assert(Math.abs(doc.body.getBoundingClientRect().width-320)<1&&doc.documentElement.scrollWidth===320, `${category} page stays within popup width`);
+      doc.querySelector('#back').click();await wait();
+    }
+    doc.querySelector('#back').click();await wait();
+    assert(doc.querySelectorAll('#category-list input').length===7&&doc.documentElement.scrollWidth===320, 'seven direct categories fit the 320px popup');
     assert([...doc.querySelectorAll('#category-list label')].every(row => {
       const bounds=row.getBoundingClientRect();
       return bounds.width>0&&bounds.right<=320&&bounds.height>=36;

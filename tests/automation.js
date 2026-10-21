@@ -8,7 +8,7 @@ if(new URLSearchParams(location.search).has('test'))(async()=>{
   try{
     await until(()=>frame.contentDocument?.querySelector('#auto-ignore')?.disabled===false&&card('5011').querySelector('.saf-checked'));
     popup=frame.contentDocument;
-    assert(popup.querySelector('#strength').value==='2'&&popup.querySelector('[value=mask]').checked,'default disclosure plus masking');
+    assert(popup.querySelector('#strength').value==='2'&&!popup.querySelector('#presentation'),'default disclosure plus masking');
     assert(popup.querySelector('#filter-art').checked&&!popup.querySelector('#filter-code').checked&&popup.querySelector('#show-checked').checked&&!popup.querySelector('#auto-ignore').checked,'art selected and green check on; auto-ignore off');
     assert(!Object.hasOwn(testBridge.data,'level')&&!Object.hasOwn(testBridge.data,'autoIgnore')&&fake.calls.length===0,'defaults require no migration write and no account request');
     assert(trailer.classList.contains('saf-blocked')&&trailer.querySelector(':scope>.saf-mask'),'single-game trailer parent is covered, including video, details and navigation');
@@ -23,18 +23,14 @@ if(new URLSearchParams(location.search).has('test'))(async()=>{
     await until(()=>releaseLate);
     releaseLate({state:'not-found',disclosure:null,checkedAt:Date.now(),expiresAt:Date.now()+60000});await wait(100);
     assert(card('5015').querySelector('.saf-checked'),'late successful result gets the check without a reload');
-    popup.querySelector('[value=remove]').click();await wait(60);
+    await testSettings({mode:'hide'});await wait(60);
     assert(trailer.getBoundingClientRect().height===0&&trailer.classList.contains('saf-removed'),'remove collapses the entire trailer object');
     assert(card('5011').getBoundingClientRect().height>0&&games.getBoundingClientRect().height>0,'other games and the surrounding page remain visible');
     await chrome.tabs.sendMessage(1,{type:'SAF_REVEAL'});await wait(60);
     assert(trailer.getBoundingClientRect().height>0&&!trailer.classList.contains('saf-removed'),'temporary reveal restores the complete trailer');
     await chrome.tabs.sendMessage(1,{type:'SAF_REVEAL'});await wait(60);
-    await chrome.storage.local.set({level:3});await wait(60);
-    assert(popup.querySelector('#rule-text').textContent==='廣泛可能會剔除非 AI 生成內容。'&&!popup.querySelector('#broad-warning').hidden,'broad mode shows the concise warning and triangle for removal');
-    popup.querySelector('[value=mask]').click();await wait(60);
-    assert(popup.querySelector('#rule-text').textContent==='廣泛可能會遮蔽非 AI 生成內容。','warning follows the selected action');
-    await chrome.storage.local.set({level:2,allow:{'5014':'混合 AI 美術'}});await wait(60);
-    assert(popup.querySelector('#broad-warning').hidden,'warning disappears outside broad mode');
+    await testSettings({mode:'mask',allow:{'5014':'混合 AI 美術'}});await wait(60);
+    assert(!popup.querySelector('#broad-warning')&&!document.querySelector('.saf-badge'),'broad control is removed and masking has no AI labels');
     popup.querySelector('#auto-ignore').click();
     await until(()=>testBridge.data.autoIgnore&&testBridge.data.ignoreState?.queue.length);
     assert(testBridge.data.ignoreState.queue.map(x=>x.id).join(',')==='5010','auto-ignore queues only active matches, respecting code, tag level and exceptions');
@@ -42,7 +38,7 @@ if(new URLSearchParams(location.search).has('test'))(async()=>{
     fake.now+=30000;await testIgnore.tick();await wait(60);
     assert(fake.posts.join(',')==='5010'&&testBridge.data.ignoreState.done['5010'],'mock Steam confirms the single queued ignore');
     assert(popup.querySelector('#ignore-status').textContent.includes('已確認忽略 1'),'popup reports a confirmed result');
-    await chrome.storage.local.set({allow:{}});await wait(100);
+    await testSettings({allow:{}});await wait(100);
     assert(testBridge.data.ignoreState.queue.some(x=>x.id==='5014'),'newly eligible matches join the queue');
     popup.querySelector('#auto-ignore').click();await until(()=>testBridge.data.autoIgnore===false);
     await testIgnore.reconcile();fake.now+=30000;await testIgnore.tick();
@@ -62,9 +58,9 @@ if(new URLSearchParams(location.search).has('test'))(async()=>{
     await until(()=>frame.contentDocument!==old&&frame.contentDocument?.querySelector('#auto-ignore')?.disabled===false);
     popup=frame.contentDocument;
     assert(!popup.querySelector('#auto-ignore').checked&&popup.querySelector('#show-checked').checked,'reopening popup restores persisted toggles');
-    await chrome.storage.local.set({showChecked:false});await wait(60);
+    await testSettings({showChecked:false});await wait(60);
     assert(!popup.querySelector('#show-checked').checked&&!document.querySelector('.saf-checked'),'cross-context check setting synchronizes');
-    await chrome.storage.local.set({showChecked:true,level:0});await wait(60);
+    await testSettings({showChecked:true,mode:'off'});await wait(60);
     assert(!document.querySelector('.saf-checked,.saf-blocked,.saf-removed'),'off restores all cards and removes status marks');
     document.documentElement.dataset.tests='passed';out.textContent+='ALL AUTOMATION TESTS PASSED';
   }catch(error){document.documentElement.dataset.tests='failed';out.textContent+=`FAIL ${error.stack}`;}

@@ -1,5 +1,5 @@
 namespace SAF {
-  export type Level = 0 | 1 | 2 | 3;
+  export type Mode = "off" | "mark" | "mask" | "hide";
   export type Presentation = "mask" | "remove";
   export interface Evidence {
     id: string;
@@ -9,8 +9,15 @@ namespace SAF {
     disclosure: string | null;
     parseIssue: boolean;
   }
-  export type FilterCategories = Record<SAFDisclosure.Category, boolean>;
-  export interface Settings { level: Level; presentation: Presentation; filterCategories: FilterCategories; autoIgnore: boolean; showChecked: boolean; allow: Record<string, string> }
+  export type FilterCategory = SAFDisclosure.Category | "unknown";
+  export const filterCategories: readonly FilterCategory[] = [...SAFDisclosure.categories, "unknown"];
+  export const categoryLabel = (category: FilterCategory): string => category === "unknown" ? "用途不明" : SAFDisclosure.packs[category].label;
+  export type FilterCategories = Record<FilterCategory, boolean>;
+  export interface Settings {
+    mode: Mode; filterCategories: FilterCategories; autoIgnore: boolean; showChecked: boolean;
+    allow: Record<string, string>; requestGap: number; concurrency: number; cacheDays: SAFLookup.CacheDays;
+  }
+  export const settingKeys = ["mode", "level", "presentation", "filterCategories", "autoIgnore", "showChecked", "allow", "requestGap", "concurrency", "cacheDays"];
   export type PageKind = "home" | "search" | "app" | "store";
   export interface Status {
     kind: PageKind;
@@ -25,22 +32,32 @@ namespace SAF {
     revealing: boolean;
     presentation: Presentation;
   }
-  export const levels = [
-    {name: "關閉", description: "保留 Steam 原本的顯示方式。"},
-    {name: "標示", description: "標示 AI 相關訊號，保留所有遊戲。"},
-    {name: "揭露", description: "遮蔽揭露中命中所選用途的遊戲。"},
-    {name: "廣泛", description: "廣泛可能會遮蔽非 AI 生成內容。"}
+  export const modes = [
+    {id: "off", name: "關閉", description: "停止檢查，保留 Steam 原本的顯示方式。"},
+    {id: "mark", name: "標記", description: "為符合所選用途的遊戲加上標籤。"},
+    {id: "mask", name: "遮蔽", description: "遮蔽符合所選用途的遊戲，保留卡片位置。"},
+    {id: "hide", name: "隱藏", description: "隱藏符合所選用途的遊戲，收起卡片空間。"}
   ] as const;
-  export function normalizeLevel(value: unknown): Level {
-    return typeof value === "number" && Number.isInteger(value) && value >= 0 && value <= 3
-      ? value as Level : 2;
+  export function normalizeMode(value: unknown): Mode {
+    return modes.find(mode => mode.id === value)?.id || "mask";
   }
-  export function normalizePresentation(value: unknown): Presentation {
-    return value === "remove" ? "remove" : "mask";
+  export function presentation(mode: Mode): Presentation {
+    return mode === "hide" ? "remove" : "mask";
+  }
+  export function filters(mode: Mode): boolean { return mode === "mask" || mode === "hide"; }
+  export function normalizeSettings(data: Record<string, unknown> = {}): Settings {
+    // A separate key prevents old broad=3 from silently becoming the new hide mode.
+    const legacyMode = data.level === 0 ? "off" : data.level === 1 ? "mark" : data.presentation === "remove" ? "hide" : "mask";
+    return {mode: data.mode === undefined ? legacyMode : normalizeMode(data.mode),
+      filterCategories: normalizeCategories(data.filterCategories), autoIgnore: data.autoIgnore === true,
+      showChecked: data.showChecked !== false, allow: cleanAllow(data.allow),
+      requestGap: [700, 1000, 2000, 5000].includes(data.requestGap as number) ? data.requestGap as number : 700,
+      concurrency: [1, 2, 3, 4].includes(data.concurrency as number) ? data.concurrency as number : 2,
+      cacheDays: data.cacheDays === 1 || data.cacheDays === 7 || data.cacheDays === 30 ? data.cacheDays : 0};
   }
   export function normalizeCategories(value?: unknown): FilterCategories {
     const saved = value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : null;
-    return Object.fromEntries(SAFDisclosure.categories.map(category =>
+    return Object.fromEntries(filterCategories.map(category =>
       [category, saved ? saved[category] === true : category === "art"])) as FilterCategories;
   }
   export function cleanAllow(value: unknown): Record<string, string> {
@@ -74,11 +91,13 @@ namespace SAF {
       return {ids: data.map(String), issue: false};
     } catch { return {ids: [], issue: true}; }
   }
-  export function shouldHide(e: Evidence, level: Level, allow: Record<string, string>, selected = normalizeCategories()): boolean {
-    if (Object.hasOwn(allow, e.id) || level < 2 || !SAFDisclosure.categories.some(category => selected[category])) return false;
-    if (e.disclosure) return SAFDisclosure.classifyUses(e.disclosure).some(category => selected[category]);
-    // Broad mode is the explicit tag-only fallback; known disclosures use categories.
-    return level === 3 && e.tagMatch;
+  export function matchesUses(e: Evidence, allow: Record<string, string>, selected = normalizeCategories()): boolean {
+    if (Object.hasOwn(allow, e.id) || !e.disclosure?.trim()) return false;
+    const uses = SAFDisclosure.classifyUses(e.disclosure);
+    return uses.length ? uses.some(category => selected[category]) : selected.unknown;
+  }
+  export function shouldHide(e: Evidence, mode: Mode, allow: Record<string, string>, selected = normalizeCategories()): boolean {
+    return filters(mode) && matchesUses(e, allow, selected);
   }
   export function reason(e: Evidence): string {
     if (e.disclosure && e.tagMatch) return "AI 使用揭露 · 人工智慧標籤";
@@ -92,7 +111,8 @@ namespace SAF {
       const heading = section.querySelector("h2");
       if (!heading || !isDisclosureHeading(heading.textContent || "")) continue;
       const quote = section.querySelector("i");
-      const text = (quote ? quote.innerText || quote.textContent || "" : section.textContent || "").trim();
+      const text = (quote ? quote.innerText || quote.textContent || ""
+        : (section.textContent || "").replace(heading.textContent || "", "")).trim();
       if (text) return text;
     }
     return null;
@@ -246,9 +266,6 @@ namespace SAF {
     return new Map(all.map(([el, e]) => [el, {...byId.get(e.id)!, title: e.title}]));
   }
   export async function getSettings(): Promise<Settings> {
-    const data = await chrome.storage.local.get(["level", "presentation", "filterCategories", "autoIgnore", "showChecked", "allow"]);
-    return {level: normalizeLevel(data.level), presentation: normalizePresentation(data.presentation),
-      filterCategories: normalizeCategories(data.filterCategories), autoIgnore: data.autoIgnore === true,
-      showChecked: data.showChecked !== false, allow: cleanAllow(data.allow)};
+    return normalizeSettings(await chrome.storage.local.get(settingKeys));
   }
 }

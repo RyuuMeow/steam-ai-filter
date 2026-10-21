@@ -8,9 +8,9 @@
   try{
     await wait(300);
     assert(lookupCalls.length===0,'off makes no network requests');
-    await chrome.storage.local.set({level:2});
+    await testSettings({mode:'mask'});
     await until(()=>cards('501').every(c=>c.classList.contains('saf-blocked')));
-    assert(cards('501').every(c=>c.querySelector('.saf-mask-label').textContent==='AI 生成內容'),'detail-only disclosure masks every copy of the app');
+    assert(cards('501').every(c=>c.querySelector('.saf-mask-label').textContent==='已遮蔽'),'detail-only disclosure masks every copy of the app');
     assert(lookupCalls.filter(id=>id==='501').length===1,'duplicate cards share one request');
     await until(async()=>(await state()).failed===1);
     assert(!cards('502')[0].classList.contains('saf-blocked')&&(await state()).checked===1,'valid absence stays visible and is counted separately');
@@ -28,9 +28,9 @@
     assert(shadow.querySelector('#evidence').textContent.includes('Artwork was generated'),'reason dialog shows fetched disclosure as text');
     shadow.querySelector('#allow').click();await wait(200);shadow.querySelector('#close').click();
     assert(cards('501').every(c=>!c.classList.contains('saf-blocked')),'allowlist overrides remote disclosure');
-    await chrome.storage.local.set({allow:{},level:1});await wait(100);
+    await testSettings({allow:{},mode:'mark'});await wait(100);
     assert(cards('501').every(c=>!c.classList.contains('saf-blocked')&&c.querySelector('.saf-badge')),'mark-only level uses fetched evidence without masking');
-    await chrome.storage.local.set({level:2});await wait(100);
+    await testSettings({mode:'mask'});await wait(100);
     const count=lookupCalls.length;
     await chrome.tabs.sendMessage(1,{type:'SAF_REFRESH'});await wait(150);
     assert(lookupCalls.length===count,'refreshing settings does not re-query fresh cache');
@@ -41,9 +41,9 @@
     await until(()=>cards('504')[0].classList.contains('saf-blocked'));
     assert(true,'scrolling toward an unknown card starts lookup and applies the result');
     window.scrollTo(0,0);await wait(200);
-    await chrome.storage.local.set({level:0});
+    await testSettings({mode:'off'});
     assert(document.querySelectorAll('.saf-blocked').length===0,'off restores cards after remote matches');
-    await chrome.storage.local.set({level:2});
+    await testSettings({mode:'mask'});
     await until(()=>cards('501').every(c=>c.classList.contains('saf-blocked')));
     const beforeClear=lookupCalls.filter(id=>id==='501').length;
     const popup=document.querySelector('iframe').contentDocument;

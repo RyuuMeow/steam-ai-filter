@@ -12,7 +12,7 @@ await mkdir('artifacts',{recursive:true});
 for (const mode of ['automation','home','search']) {
   let page=await read(mode==='automation'?'tests/automation.html':mode==='home'?'tests/home.html':'tests/fixture.html');
   page=page.replace('<link rel="stylesheet" href="/dist/content.css">',`<style>${await read('dist/content.css')}</style>`);
-  page=page.replace('src="/preview-popup.html"',`srcdoc="${escape(popup)}"`);
+  page=page.replace('data-preview="/preview-popup.html"',`srcdoc="${escape(popup)}"`);
   page=page.replace('src="/dist/icons/icon32.png"',`src="data:image/png;base64,${(await readFile('dist/icons/icon32.png')).toString('base64')}"`);
   const files=mode==='automation'
     ? ['tests/bridge','dist/lookup','dist/disclosure-keywords','dist/disclosure','dist/core','dist/ignore','tests/automation-setup','dist/mask','dist/layout','dist/content','tests/automation']

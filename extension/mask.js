@@ -40,8 +40,8 @@ var SAF;
                 card.classList.add("saf-positioned");
         }
         card.classList.add("saf-blocked");
-        const title = evidence.disclosure ? "AI 生成內容" : "人工智慧標籤";
-        card.setAttribute("aria-label", `${title}，已遮蔽 ${evidence.title}。點擊查看原因`);
+        const title = "已遮蔽";
+        card.setAttribute("aria-label", `已遮蔽 ${evidence.title}。點擊查看原因`);
         card.setAttribute("role", "button");
         if (!card.matches("a[href]"))
             card.setAttribute("tabindex", "0");
@@ -51,14 +51,14 @@ var SAF;
             cover.className = "saf-mask";
             cover.setAttribute("aria-hidden", "true");
             // Fixed, locally authored SVG; no site content is interpolated.
-            cover.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M9 6V4h6v2M5 6l1 14h12l1-14M10 10v6M14 10v6"/></svg><span class="saf-mask-label"></span>';
+            cover.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 3 18 18M10.6 10.6a2 2 0 0 0 2.8 2.8M9.8 5.2C16 3.5 21 12 21 12a18 18 0 0 1-3 3.7M6.2 6.2A21 21 0 0 0 3 12s5 8 11.3 6.4"/></svg><span class="saf-mask-label"></span>';
             card.append(cover);
         }
         const label = cover.querySelector(".saf-mask-label");
         if (label.textContent !== title)
             label.textContent = title;
         for (const child of Array.from(card.children)) {
-            if (!(child instanceof HTMLElement) || child === cover)
+            if (!(child instanceof HTMLElement) || child === cover || child.classList.contains("saf-checked"))
                 continue;
             if (!original.children.has(child))
                 original.children.set(child, { inert: child.inert, aria: child.getAttribute("aria-hidden") });

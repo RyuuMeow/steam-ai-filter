@@ -1,17 +1,24 @@
 {
   "manifest_version": 3,
   "name": "Steam AI Filter",
-  "version": "0.8.0",
-  "description": "動態查詢 Steam 遊戲的 AI 揭露並保存在本機，依等級標示、遮蔽或剔除遊戲。",
+  "version": "0.9.0",
+  "description": "檢查 Steam 遊戲的 AI 揭露，依用途標記、遮蔽或隱藏，支援本機快取與網路設定。",
   "icons": {
     "16": "icons/icon16.png",
     "32": "icons/icon32.png",
     "48": "icons/icon48.png",
     "128": "icons/icon128.png"
   },
-  "permissions": ["storage", "alarms"],
-  "host_permissions": ["https://store.steampowered.com/*"],
-  "background": {"service_worker": "background.js"},
+  "permissions": [
+    "storage",
+    "alarms"
+  ],
+  "host_permissions": [
+    "https://store.steampowered.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
   "action": {
     "default_title": "Steam AI Filter",
     "default_popup": "popup.html",
@@ -22,10 +29,24 @@
       "128": "icons/icon128.png"
     }
   },
-  "content_scripts": [{
-    "matches": ["https://store.steampowered.com/*"],
-    "js": ["lookup.js", "disclosure-keywords.js", "disclosure.js", "core.js", "mask.js", "layout.js", "content.js"],
-    "css": ["content.css"],
-    "run_at": "document_idle"
-  }]
+  "content_scripts": [
+    {
+      "matches": [
+        "https://store.steampowered.com/*"
+      ],
+      "js": [
+        "lookup.js",
+        "disclosure-keywords.js",
+        "disclosure.js",
+        "core.js",
+        "mask.js",
+        "layout.js",
+        "content.js"
+      ],
+      "css": [
+        "content.css"
+      ],
+      "run_at": "document_idle"
+    }
+  ]
 }

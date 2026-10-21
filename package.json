@@ -1,6 +1,6 @@
 {
   "name": "steam-ai-filter",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "private": true,
   "license": "MIT",
   "description": "Chrome extension to hide or mark Steam games with disclosed AI-generated content.",
@@ -30,7 +30,8 @@
     "package:check": "node scripts/package.mjs --check",
     "package:rar": "npm run build && npm run package:check && node scripts/package-rar.mjs",
     "release:check": "node scripts/release-info.mjs",
-    "preview:package": "npm run build && node scripts/package-preview.mjs"
+    "preview:package": "npm run build && node scripts/package-preview.mjs",
+    "test:browser": "npm run build && node scripts/test-browser.mjs"
   },
   "devDependencies": {
     "@types/chrome": "^0.3.5",

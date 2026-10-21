@@ -1,5 +1,4 @@
-testBridge.data.level = 2;
-testBridge.data.presentation = 'remove';
+testBridge.data.mode = 'hide';
 const now = Date.now();
 testBridge.data.disclosureCache = {version:1,sessionAware:true,items:{
   901:{state:'disclosed',disclosure:'AI was used only for code assistance.',checkedAt:now,expiresAt:now+60000},

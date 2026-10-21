@@ -91,13 +91,17 @@ var SAFIgnore;
         async persist(enabled) {
             await this.deps.save(structuredClone(this.state), enabled);
         }
-        active(settings) { return settings.autoIgnore && settings.level >= 2; }
+        active(settings) { return settings.autoIgnore && SAF.filters(settings.mode); }
         async allowed(item, settings, snapshot) {
             const cache = (snapshot || await this.deps.cache())[item.id];
-            if (cache?.state === "disclosed" && SAFLookup.fresh(cache, this.now()))
+            if (cache && !SAFLookup.fresh(cache, this.now(), settings.cacheDays))
+                return false;
+            if (cache?.state === "disclosed")
                 item.disclosure = cache.disclosure;
+            if (cache?.state === "not-found" || cache?.state === "unavailable")
+                return false;
             return this.active(settings) && item.expiresAt > this.now()
-                && SAF.shouldHide(item, settings.level, settings.allow, settings.filterCategories);
+                && SAF.shouldHide(item, settings.mode, settings.allow, settings.filterCategories);
         }
         async prune(settings) {
             const cache = await this.deps.cache();
@@ -162,7 +166,7 @@ var SAFIgnore;
                     if (!e || Object.hasOwn(this.state.done, e.id))
                         continue;
                     const old = this.state.queue.find(item => item.id === e.id);
-                    if (!SAF.shouldHide(e, settings.level, settings.allow, settings.filterCategories)) {
+                    if (!SAF.shouldHide(e, settings.mode, settings.allow, settings.filterCategories)) {
                         if (old)
                             this.state.queue = this.state.queue.filter(item => item !== old);
                         continue;

@@ -8,7 +8,8 @@ iframe { display: block; width: 95px; height: 360px; border: 0; background: whit
 pre { white-space: pre-wrap; }
 </style>
 <p>彈窗初始寬度 95px → 依內容測量</p>
-<iframe src="/preview-popup.html" title="彈窗寬度回歸"></iframe>
+<iframe data-preview="/preview-popup.html" title="彈窗寬度回歸"></iframe>
 <pre id="test-results"></pre>
 <script src="/tests/popup-sizing.js"></script>
+<script>document.querySelector("iframe[data-preview]")?.setAttribute("src", "/preview-popup.html");</script>
 </html>

@@ -41,26 +41,26 @@ test('mixed disclosures retain each positive category and ignore denied uses', (
 test('ambiguous words, negations and missing disclosures do not guess a use',()=>{
   for(const text of ['',null,'AI assisted development.','AI models and assets.','Scripts and characters.','No AI art or music.','No AI art and music is used.','We did not use AI for artwork.','All artwork and music were created by humans.','沒有 AI 生成的美術或音樂。']) assert.deepEqual(classify(text),[],text);
 });
-test('only selected categories filter; formal unknowns and unselected uses stay visible even in broad mode',()=>{
-  for(const level of [0,1,2,3]) {
-    assert.equal(S.shouldHide(evidence('AI art and code.'),level,{}),level>=2);
+test('only selected categories filter; formal unknowns require explicit selection',()=>{
+  for(const level of ["off","mark","mask","hide"]) {
+    assert.equal(S.shouldHide(evidence('AI art and code.'),level,{}),["mask","hide"].includes(level));
     assert.equal(S.shouldHide(evidence('AI translation and code.'),level,{}),false);
     assert.equal(S.shouldHide(evidence('AI used during development.'),level,{}),false);
-    assert.equal(S.shouldHide(evidence('AI translation.'),level,{},S.normalizeCategories({translation:true})),level>=2);
+    assert.equal(S.shouldHide(evidence('AI translation.'),level,{},S.normalizeCategories({translation:true})),["mask","hide"].includes(level));
     assert.equal(S.shouldHide(evidence('AI art.'),level,{},S.normalizeCategories({})),false);
     assert.equal(S.shouldHide(evidence(null),level,{},S.normalizeCategories({})),false);
     assert.equal(S.shouldHide(evidence('AI art.'),level,{'42':'Manual'}),false);
   }
-  assert.equal(S.shouldHide(evidence(null),3,{}),true);
+  assert.equal(S.shouldHide(evidence(null),'hide',{}),false);
 });
 test('new and legacy installs default to art alone without changing other settings', async()=>{
-  for(const value of [undefined,null,[],false,'art']) assert.deepEqual(JSON.parse(JSON.stringify(S.normalizeCategories(value))),{art:true,music:false,voice:false,text:false,translation:false,code:false});
-  assert.deepEqual(JSON.parse(JSON.stringify(S.normalizeCategories({code:true,art:'true',music:1,unknown:true}))),{art:false,music:false,voice:false,text:false,translation:false,code:true});
+  for(const value of [undefined,null,[],false,'art']) assert.deepEqual(JSON.parse(JSON.stringify(S.normalizeCategories(value))),{art:true,music:false,voice:false,text:false,translation:false,code:false,unknown:false});
+  assert.deepEqual(JSON.parse(JSON.stringify(S.normalizeCategories({code:true,art:'true',music:1,unknown:true}))),{art:false,music:false,voice:false,text:false,translation:false,code:true,unknown:true});
   for(const acceptAICode of [undefined,true,false]) {
     ctx.chrome={storage:{local:{get:async()=>({acceptAICode,level:3,presentation:'remove',allow:{42:'Game'},autoIgnore:true,showChecked:false})}}};
     const s=await S.getSettings();
     assert.equal(s.filterCategories.art,true);assert.equal(s.filterCategories.code,false);
-    assert.equal(s.level,3);assert.equal(s.presentation,'remove');assert.equal(s.allow['42'],'Game');assert.equal(s.autoIgnore,true);assert.equal(s.showChecked,false);
+    assert.equal(s.mode,'hide');assert.equal(s.allow['42'],'Game');assert.equal(s.autoIgnore,true);assert.equal(s.showChecked,false);
     assert.equal('acceptAICode' in s,false);
   }
   ctx.chrome.storage.local.get=async()=>({filterCategories:{}});
@@ -70,7 +70,19 @@ test('cached classification is independent of selection and disclosure changes',
   for(let i=0;i<510;i++) classify(`AI code ${i}.`);
   assert.deepEqual(classify('AI code.'),['code']);
   assert.deepEqual(classify('AI code and art.'),['art','code']);
-  assert.equal(S.shouldHide(evidence('AI code.'),2,{}),false);
-  assert.equal(S.shouldHide(evidence('AI code.'),2,{},S.normalizeCategories({code:true})),true);
-  assert.equal(S.shouldHide(evidence('AI code.'),2,{}),false);
+  assert.equal(S.shouldHide(evidence('AI code.'),'mask',{}),false);
+  assert.equal(S.shouldHide(evidence('AI code.'),'mask',{},S.normalizeCategories({code:true})),true);
+  assert.equal(S.shouldHide(evidence('AI code.'),'mask',{}),false);
+});
+
+test('unknown is derived only from a readable disclosure with no classified uses',()=>{
+  const selected=S.normalizeCategories({unknown:true});
+  for(const mode of ['off','mark','mask','hide']) {
+    assert.equal(S.shouldHide(evidence('AI assisted development.'),mode,{},selected),['mask','hide'].includes(mode));
+    for(const disclosure of [null,'','   ','AI art.']) assert.equal(S.shouldHide(evidence(disclosure),mode,{},selected),false);
+  }
+  assert.equal(S.matchesUses(evidence('AI assisted development.'),{},selected),true);
+  assert.equal(S.matchesUses(evidence('AI assisted development.'),{'42':'Exception'},selected),false);
+  assert.equal(S.matchesUses(evidence('AI art and music.'),{},S.normalizeCategories({music:true})),true);
+  assert.equal(S.matchesUses(evidence('AI art and music.'),{},S.normalizeCategories({})),false);
 });

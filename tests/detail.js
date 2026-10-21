@@ -3,7 +3,7 @@
   const out=document.querySelector('#test-results');
   const assert=(v,msg)=>{if(!v)throw Error(msg);out.textContent+=`PASS ${msg}\n`;};
   try{
-    await pause(200);await chrome.storage.local.set({level:3});
+    await pause(200);await testSettings({mode:'mask'});
     const evidence=SAF.readEvidence(document,'4517370','Detail fixture');
     assert(evidence.disclosure.includes('Some art')&&!evidence.disclosure.includes('Violence'),'AI and mature descriptors distinguished');
     assert(evidence.disclosure.includes('\n'),'disclosure line breaks preserved');

@@ -13,12 +13,12 @@ npm run dev
 - 首頁完整推薦測試：`http://127.0.0.1:4173/tests/home-single.html?test=1`
 - 首頁預覽：`http://127.0.0.1:4173/`
 - 首頁測試：`http://127.0.0.1:4173/?test=1`
-- 遮蔽／剔除測試：`http://127.0.0.1:4173/tests/removal.html?test=1`（去掉 `?test=1` 為互動預覽）
+- 遮蔽／隱藏測試：`http://127.0.0.1:4173/tests/removal.html?test=1`（去掉 `?test=1` 為互動預覽）
 - 整列／輪播靠齊測試：`http://127.0.0.1:4173/tests/layout.html?test=1`（去掉 `?test=1` 為互動預覽）
-- 六項用途與收合清單測試：`http://127.0.0.1:4173/tests/categories.html?test=1`（去掉 `?test=1` 為互動預覽）
+- 七項用途與模式切換測試：`http://127.0.0.1:4173/tests/categories.html?test=1`（去掉 `?test=1` 為互動預覽）
 - 預告片／綠勾／自動忽略測試：`http://127.0.0.1:4173/tests/automation.html?test=1`（合成帳號及 HTTP 回應，不修改真實 Steam 帳號）
 - 彈窗初始尺寸回歸：`http://127.0.0.1:4173/tests/popup-sizing.html`
-- 更新失效回歸：`http://127.0.0.1:4173/tests/invalidation.html?case=sync`（其他 case：`async`、`id`、`pending`、`storage`；加 `&remove=1` 驗證剔除還原）
+- 更新失效回歸：`http://127.0.0.1:4173/tests/invalidation.html?case=sync`（其他 case：`async`、`id`、`pending`、`storage`；加 `&remove=1` 驗證隱藏還原）
 - 動態查詢與快取整合測試：`http://127.0.0.1:4173/?lookup=1`
 - 全商店／推薦圖組測試：`http://127.0.0.1:4173/sale/nextfest?coverage=1`
 - 商品詳情的其他遊戲測試：`http://127.0.0.1:4173/app/620/?coverage=1`
@@ -26,6 +26,16 @@ npm run dev
 - 搜尋頁瀏覽器測試：`http://127.0.0.1:4173/search/?test=1`
 - 詳情頁瀏覽器測試：`http://127.0.0.1:4173/app/4517370/`
 - 單檔預覽：執行 `npm run preview:package`，開啟 `artifacts/preview.html`。
+
+執行全部瀏覽器情境：
+
+```sh
+npm run test:browser
+```
+
+此入口會啟動本機 localhost 預覽與無介面 Chromium，依序執行 23 個情境（含五種失效原因的遮蔽／隱藏組合），結束後停止程序。Windows 自動尋找本機 Playwright Chromium、Chrome 或 Edge；其他位置／平台可指定 `BROWSER_BIN`。不額外安裝瀏覽器或 npm 套件。結果寫入忽略追蹤的 `artifacts/browser-tests/`，失敗會保存截圖。
+
+開發時可針對範圍執行 `node scripts/test-browser.mjs settings categories`（先建置）。`node scripts/test-browser.mjs --preview` 可擷取新模式與設定頁截圖；互動預覽為 `http://127.0.0.1:4173/tests/settings.html`。
 
 瀏覽器測試以 Chrome API 替身測試內容腳本與彈窗，使用虛構遊戲與實際觀察到的 Steam DOM 結構。動態查詢 fixture 使用正式 Resolver 加上合成 HTTP 回應。它不等於已在使用者 Chrome 安裝實測。測試替身不會進入 `dist/`。
 
@@ -47,7 +57,7 @@ npm run package:check
 
 `package` 會重建並更新 **extension/**；此資料夾需要一併提交，勿直接修改裡面的產物。
 `package:check` 比較檔案清單與內容，確認安裝包和目前建置一致，不修改檔案。
-GitHub Actions 執行 Node 測試、型別檢查、建置及安裝包比對；瀏覽器 fixture 仍需依上方連結在本機執行，未包含在 CI 中。
+GitHub Actions 執行 Node 測試、型別檢查、建置及安裝包比對；瀏覽器情境另以 `npm run test:browser` 在本機執行，未包含在 CI 中。
 
 ## 自動發版
 
@@ -55,8 +65,8 @@ GitHub Actions 執行 Node 測試、型別檢查、建置及安裝包比對；�
 
 ```sh
 git push origin main
-git tag v0.8.0
-git push origin v0.8.0
+git tag v0.9.0
+git push origin v0.9.0
 ```
 
 [Release workflow](../.github/workflows/release.yml) 會：
@@ -73,7 +83,7 @@ GitHub 另外自動顯示的 **Source code (zip/tar.gz)** 連結由平台提供�
 下次發版時，先同步修改 `package.json`、`package-lock.json`（包含根 package 版本）及 `public/manifest.json`，更新 README 與驗證紀錄，執行 `npm run package` 並提交 `extension/`。再推送新的 `v版本號` 標籤。
 標籤不符、安裝包過期或驗證失敗都會停止發版；已存在的 Release 不會被覆寫。若流程在發布前失敗，修復環境後可重新執行該 workflow；程式碼修正則使用新版本標籤。
 
-若標籤已存在但尚未建立 Release，可到 **Actions → Release → Run workflow**，選擇 `main`，在 `tag` 填入既有版本標籤（例如 `v0.8.0`）。
+若標籤已存在但尚未建立 Release，可到 **Actions → Release → Run workflow**，選擇 `main`，在 `tag` 填入既有版本標籤（例如 `v0.9.0`）。
 流程會取出該標籤的程式碼，執行相同的版本檢查、測試及 RAR 驗證，不會更改標籤。
 
 ### 本機產生 RAR
@@ -82,10 +92,10 @@ GitHub 另外自動顯示的 **Source code (zip/tar.gz)** 連結由平台提供�
 
 ```sh
 npm run package:rar
-npm run release:check -- v0.8.0
+npm run release:check -- v0.9.0
 ```
 
-產物為 `artifacts/steam-ai-filter-v0.8.0.rar`，打包時也會檢查 `extension/` 是否過期。
+產物為 `artifacts/steam-ai-filter-v0.9.0.rar`，打包時也會檢查 `extension/` 是否過期。
 Windows 會自動尋找標準 WinRAR 安裝位置；其他位置可用 `RAR_BIN` 環境變數指定執行檔。Linux 使用 PATH 中的 `rar`，CI 從 Ubuntu 套件庫安裝。
 
 發版依據：[GitHub CLI release create](https://cli.github.com/manual/gh_release_create)、[Ubuntu 24.04 RAR 套件](https://packages.ubuntu.com/noble/rar)。

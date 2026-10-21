@@ -1,5 +1,5 @@
 // Real resolver, synthetic HTTP responses. No external requests or credentials.
-void chrome.storage.local.set({level:0});
+void chrome.storage.local.set({mode:'off'});
 window.lookupCalls=[];
 const makeHTML=(id,disclosure)=>`<html><head><meta property="og:url" content="https://store.steampowered.com/app/${id}/"></head><body>
 <div id="appHubAppName">Fixture</div><div id="game_area_description">About This Game</div>
@@ -18,6 +18,6 @@ window.testResolver=new SAFLookup.Resolver({
 window.testLookup=id=>testResolver.get(id);
 window.testClearCache=()=>testResolver.clear();
 chrome.storage.onChanged.addListener((changes,area)=>{
-  if(area==='local'&&changes.level)testResolver.setEnabled(changes.level.newValue!==0);
+  if(area==='local'&&changes.mode)testResolver.setEnabled(changes.mode.newValue!=='off');
 });
 document.addEventListener('click',event=>{if(event.target.closest('a'))event.preventDefault();});

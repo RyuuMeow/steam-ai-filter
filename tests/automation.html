@@ -27,6 +27,7 @@ pre{white-space:pre-wrap;font-size:12px;margin:20px 0}.preview-note{color:#b6c9d
 <script src="/dist/lookup.js"></script><script src="/dist/disclosure-keywords.js"></script><script src="/dist/disclosure.js"></script><script src="/dist/core.js"></script><script src="/dist/ignore.js"></script>
 <script src="/tests/automation-setup.js"></script>
 <script src="/dist/mask.js"></script><script src="/dist/layout.js"></script><script src="/dist/content.js"></script>
-<iframe src="/preview-popup.html" title="Steam AI Filter 設定"></iframe>
+<iframe data-preview="/preview-popup.html" title="Steam AI Filter 設定"></iframe>
 <script src="/tests/automation.js"></script>
+<script>document.querySelector("iframe[data-preview]")?.setAttribute("src", "/preview-popup.html");</script>
 </html>

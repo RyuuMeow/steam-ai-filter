@@ -19,7 +19,7 @@ document.querySelector('#mixed .home_content_items').insertAdjacentHTML('beforee
   `<a href="https://store.steampowered.com/app/621/"><img alt="第二款遊戲" src="${art}"></a>`);
 document.querySelector('#extra-wrapper-outer').insertAdjacentHTML('beforeend','<p id="separate-content">外層獨立資訊</p>');
 const now=Date.now();
-void chrome.storage.local.set({level:2,presentation:'mask',autoIgnore:false,disclosureCache:{version:1,sessionAware:true,cooldownUntil:0,items:{
+void chrome.storage.local.set({mode:'mask',autoIgnore:false,disclosureCache:{version:1,sessionAware:true,cooldownUntil:0,items:{
   '3850550':{state:'disclosed',disclosure:'AI-generated artwork is used.',checkedAt:now,expiresAt:now+86400000},
   '621':{state:'not-found',disclosure:null,checkedAt:now,expiresAt:now+86400000},
   '620':{state:'not-found',disclosure:null,checkedAt:now,expiresAt:now+86400000}

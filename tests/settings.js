@@ -1,0 +1,58 @@
+const frame=document.querySelector('iframe');
+if(!new URLSearchParams(location.search).has('test')) frame.addEventListener('load',()=>{
+  new ResizeObserver(()=>{frame.style.height=`${frame.contentDocument.body.scrollHeight+8}px`;}).observe(frame.contentDocument.body);
+});
+document.querySelector('.catalog').addEventListener('click',event=>event.preventDefault());
+if(new URLSearchParams(location.search).has('test')) (async()=>{
+  const out=document.querySelector('#test-results'),wait=ms=>new Promise(r=>setTimeout(r,ms));
+  const until=async fn=>{for(let i=0;i<100;i++){if(await fn())return;await wait(25);}throw Error('Timed out');};
+  const assert=(ok,label)=>{if(!ok)throw Error(label);out.textContent+=`PASS ${label}\n`;};
+  let doc;
+  const open=name=>doc.querySelector(`[data-open="${name}"]`).click();
+  const back=()=>doc.querySelector('#back').click();
+  const change=(id,value)=>{const field=doc.querySelector(id);field.value=value;field.dispatchEvent(new Event('change'));};
+  try {
+    await until(()=>frame.contentDocument?.querySelector('#strength')?.disabled===false);
+    doc=frame.contentDocument;
+    assert(!doc.querySelector('details,#presentation,#broad-warning'),'main panel has no old folded controls or duplicate presentation switch');
+    assert(doc.querySelector('#settings').getAttribute('aria-label')==='設定'&&doc.querySelector('#back').textContent.trim()==='','settings and return icons have names without visible return text');
+    const initialSelection=JSON.stringify(testBridge.data.filterCategories);
+    frame.style.height='300px';frame.contentWindow.scrollTo(0,100);await wait(30);
+    const scroll=frame.contentWindow.scrollY;
+    open('settings');assert(doc.querySelector('#page-title').textContent==='設定','gear opens the category page');
+    open('network');assert(doc.querySelector('#page-title').textContent==='網路設定','category opens the next level');
+    change('#request-gap','2000');change('#concurrency','4');
+    await until(()=>testBridge.data.requestGap===2000&&testBridge.data.concurrency===4);
+    assert((await SAF.getSettings()).concurrency===4,'network controls persist without dropping queued field edits');
+    back();assert(doc.querySelector('#page-title').textContent==='設定'&&doc.activeElement.dataset.open==='network','back restores parent category and triggering focus');
+    open('checking');change('#cache-days','30');await until(()=>testBridge.data.cacheDays===30);
+    assert(doc.querySelector('#cache-help').textContent.includes('30 天'),'cache policy updates its explanation');
+    await testSettings({cacheDays:1,requestGap:5000,concurrency:1});await wait(30);
+    assert(doc.querySelector('#cache-days').value==='1'&&doc.querySelector('#concurrency').value==='1','other contexts update fields without changing the current page');
+    assert(doc.querySelector('#page-title').textContent==='檢查與快取','cross-tab changes preserve navigation');
+    const local=frame.contentWindow.chrome.storage.local, original=local.set;
+    local.set=async()=>{throw Error('Simulated settings failure');};change('#cache-days','7');
+    await until(()=>!doc.querySelector('#error').hidden);
+    assert(doc.querySelector('#cache-days').value==='1'&&testBridge.data.cacheDays===1,'failed save restores the committed cache policy');
+    local.set=original;change('#cache-days','7');await until(()=>testBridge.data.cacheDays===7&&doc.querySelector('#error').hidden);
+    back();open('display');doc.querySelector('#show-checked').click();
+    await until(()=>testBridge.data.showChecked===false&&!document.querySelector('.saf-checked'));
+    back();back();
+    assert(doc.querySelector('#page-title').textContent==='AI 過濾'&&doc.activeElement.id==='settings','return walks back one level and restores main action focus');
+    assert(frame.contentWindow.scrollY===scroll&&JSON.stringify(testBridge.data.filterCategories)===initialSelection,'return preserves main scroll and use selections');
+    const calls=lookupCount;
+    change('#strength','0');await until(()=>testBridge.data.mode==='off');await wait(80);
+    assert(!document.querySelector('.saf-badge,.saf-checked,.saf-mask,.saf-removed'),'off removes all plugin presentation');
+    const pending=document.querySelector('#duplicate').cloneNode(true);pending.id='off-card';pending.href='https://store.steampowered.com/app/908/';
+    document.querySelector('.catalog').prepend(pending);await wait(200);
+    assert(lookupCount===calls,'off does not inspect newly inserted cards');
+    change('#strength','1');await until(()=>resolveCodeLookup);
+    change('#strength','0');await until(()=>testBridge.data.mode==='off');await wait(40);
+    resolveCodeLookup({state:'disclosed',disclosure:'AI art.',checkedAt:Date.now(),expiresAt:Date.now()+86400000});await wait(120);
+    assert(!document.querySelector('.saf-badge,.saf-checked,.saf-mask,.saf-removed'),'late results after off cannot restore labels or filters');
+    const old=doc;frame.contentWindow.location.reload();
+    await until(()=>frame.contentDocument!==old&&frame.contentDocument?.querySelector('#strength')?.disabled===false);doc=frame.contentDocument;
+    assert(doc.querySelector('#strength').value==='0'&&doc.querySelector('#cache-days').value==='7'&&doc.querySelector('#request-gap').value==='5000','reopening restores mode and detailed preferences');
+    out.textContent+='ALL SETTINGS TESTS PASSED';document.documentElement.dataset.tests='passed';
+  } catch(e) {out.textContent+=`FAIL ${e.stack}`;document.documentElement.dataset.tests='failed';}
+})();

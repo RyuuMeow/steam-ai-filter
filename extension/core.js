@@ -1,24 +1,39 @@
 "use strict";
 var SAF;
 (function (SAF) {
-    SAF.levels = [
-        { name: "關閉", description: "保留 Steam 原本的顯示方式。" },
-        { name: "標示", description: "標示 AI 相關訊號，保留所有遊戲。" },
-        { name: "揭露", description: "遮蔽揭露中命中所選用途的遊戲。" },
-        { name: "廣泛", description: "廣泛可能會遮蔽非 AI 生成內容。" }
+    SAF.filterCategories = [...SAFDisclosure.categories, "unknown"];
+    SAF.categoryLabel = (category) => category === "unknown" ? "用途不明" : SAFDisclosure.packs[category].label;
+    SAF.settingKeys = ["mode", "level", "presentation", "filterCategories", "autoIgnore", "showChecked", "allow", "requestGap", "concurrency", "cacheDays"];
+    SAF.modes = [
+        { id: "off", name: "關閉", description: "停止檢查，保留 Steam 原本的顯示方式。" },
+        { id: "mark", name: "標記", description: "為符合所選用途的遊戲加上標籤。" },
+        { id: "mask", name: "遮蔽", description: "遮蔽符合所選用途的遊戲，保留卡片位置。" },
+        { id: "hide", name: "隱藏", description: "隱藏符合所選用途的遊戲，收起卡片空間。" }
     ];
-    function normalizeLevel(value) {
-        return typeof value === "number" && Number.isInteger(value) && value >= 0 && value <= 3
-            ? value : 2;
+    function normalizeMode(value) {
+        return SAF.modes.find(mode => mode.id === value)?.id || "mask";
     }
-    SAF.normalizeLevel = normalizeLevel;
-    function normalizePresentation(value) {
-        return value === "remove" ? "remove" : "mask";
+    SAF.normalizeMode = normalizeMode;
+    function presentation(mode) {
+        return mode === "hide" ? "remove" : "mask";
     }
-    SAF.normalizePresentation = normalizePresentation;
+    SAF.presentation = presentation;
+    function filters(mode) { return mode === "mask" || mode === "hide"; }
+    SAF.filters = filters;
+    function normalizeSettings(data = {}) {
+        // A separate key prevents old broad=3 from silently becoming the new hide mode.
+        const legacyMode = data.level === 0 ? "off" : data.level === 1 ? "mark" : data.presentation === "remove" ? "hide" : "mask";
+        return { mode: data.mode === undefined ? legacyMode : normalizeMode(data.mode),
+            filterCategories: normalizeCategories(data.filterCategories), autoIgnore: data.autoIgnore === true,
+            showChecked: data.showChecked !== false, allow: cleanAllow(data.allow),
+            requestGap: [700, 1000, 2000, 5000].includes(data.requestGap) ? data.requestGap : 700,
+            concurrency: [1, 2, 3, 4].includes(data.concurrency) ? data.concurrency : 2,
+            cacheDays: data.cacheDays === 1 || data.cacheDays === 7 || data.cacheDays === 30 ? data.cacheDays : 0 };
+    }
+    SAF.normalizeSettings = normalizeSettings;
     function normalizeCategories(value) {
         const saved = value && typeof value === "object" && !Array.isArray(value) ? value : null;
-        return Object.fromEntries(SAFDisclosure.categories.map(category => [category, saved ? saved[category] === true : category === "art"]));
+        return Object.fromEntries(SAF.filterCategories.map(category => [category, saved ? saved[category] === true : category === "art"]));
     }
     SAF.normalizeCategories = normalizeCategories;
     function cleanAllow(value) {
@@ -62,13 +77,15 @@ var SAF;
         }
     }
     SAF.parseTagIds = parseTagIds;
-    function shouldHide(e, level, allow, selected = normalizeCategories()) {
-        if (Object.hasOwn(allow, e.id) || level < 2 || !SAFDisclosure.categories.some(category => selected[category]))
+    function matchesUses(e, allow, selected = normalizeCategories()) {
+        if (Object.hasOwn(allow, e.id) || !e.disclosure?.trim())
             return false;
-        if (e.disclosure)
-            return SAFDisclosure.classifyUses(e.disclosure).some(category => selected[category]);
-        // Broad mode is the explicit tag-only fallback; known disclosures use categories.
-        return level === 3 && e.tagMatch;
+        const uses = SAFDisclosure.classifyUses(e.disclosure);
+        return uses.length ? uses.some(category => selected[category]) : selected.unknown;
+    }
+    SAF.matchesUses = matchesUses;
+    function shouldHide(e, mode, allow, selected = normalizeCategories()) {
+        return filters(mode) && matchesUses(e, allow, selected);
     }
     SAF.shouldHide = shouldHide;
     function reason(e) {
@@ -88,7 +105,8 @@ var SAF;
             if (!heading || !isDisclosureHeading(heading.textContent || ""))
                 continue;
             const quote = section.querySelector("i");
-            const text = (quote ? quote.innerText || quote.textContent || "" : section.textContent || "").trim();
+            const text = (quote ? quote.innerText || quote.textContent || ""
+                : (section.textContent || "").replace(heading.textContent || "", "")).trim();
             if (text)
                 return text;
         }
@@ -285,10 +303,7 @@ var SAF;
     }
     SAF.mergeEvidence = mergeEvidence;
     async function getSettings() {
-        const data = await chrome.storage.local.get(["level", "presentation", "filterCategories", "autoIgnore", "showChecked", "allow"]);
-        return { level: normalizeLevel(data.level), presentation: normalizePresentation(data.presentation),
-            filterCategories: normalizeCategories(data.filterCategories), autoIgnore: data.autoIgnore === true,
-            showChecked: data.showChecked !== false, allow: cleanAllow(data.allow) };
+        return normalizeSettings(await chrome.storage.local.get(SAF.settingKeys));
     }
     SAF.getSettings = getSettings;
 })(SAF || (SAF = {}));

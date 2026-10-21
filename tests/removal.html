@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="zh-Hant">
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Steam AI Filter · 遮蔽與剔除</title>
+<title>Steam AI Filter · 遮蔽與隱藏</title>
 <link rel="stylesheet" href="/dist/content.css">
 <style>
 * { box-sizing: border-box; }
@@ -18,9 +18,9 @@ iframe { width: 320px; height: 400px; border: 0; border-radius: 12px; }
 pre { white-space: pre-wrap; font: 12px/1.6 Consolas, monospace; }
 </style>
 <main>
-  <h1>Steam AI Filter · 遮蔽／剔除預覽</h1>
+  <h1>Steam AI Filter · 遮蔽／隱藏預覽</h1>
   <div class="layout">
-    <iframe src="/preview-popup.html" title="插件彈窗預覽"></iframe>
+    <iframe data-preview="/preview-popup.html" title="插件彈窗預覽"></iframe>
     <div class="store">
       <div class="catalog">
         <a class="card" id="disclosed" href="https://store.steampowered.com/app/701/" aria-label="Original game link">
@@ -50,4 +50,5 @@ pre { white-space: pre-wrap; font: 12px/1.6 Consolas, monospace; }
 <script src="/dist/lookup.js"></script><script src="/dist/disclosure-keywords.js"></script><script src="/dist/disclosure.js"></script><script src="/dist/core.js"></script>
 <script src="/dist/mask.js"></script><script src="/dist/layout.js"></script><script src="/dist/content.js"></script>
 <script src="/tests/removal.js"></script>
+<script>document.querySelector("iframe[data-preview]")?.setAttribute("src", "/preview-popup.html");</script>
 </html>

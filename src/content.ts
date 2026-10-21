@@ -2,7 +2,7 @@
   let appMatch = location.pathname.match(/^\/app\/(\d+)(?:\/|$)/);
   let kind = SAF.pageKind(location.pathname);
   if (document.getElementById("saf-root")) return;
-  let settings: SAF.Settings = {level: 2, presentation: "mask", filterCategories: SAF.normalizeCategories(), autoIgnore: false, showChecked: true, allow: {}};
+  let settings = SAF.normalizeSettings();
   let revealing = false;
   let ready = false;
   let stopped = false;
@@ -12,7 +12,7 @@
   let previousStatus = "";
   let ignoreSignature = "";
   let ignoreSentAt = 0;
-  let status: SAF.Status = {kind, total: 0, hidden: 0, matched: 0, unknown: 0, revealing, presentation: settings.presentation};
+  let status: SAF.Status = {kind, total: 0, hidden: 0, matched: 0, unknown: 0, revealing, presentation: SAF.presentation(settings.mode)};
   const entries = new Map<Element, SAF.Evidence>();
   let effective = new Map<Element, SAF.Evidence>();
   const watched = new WeakSet<Element>();
@@ -20,7 +20,9 @@
   const removalLayout = new SAF.RemovalLayout();
   const nearby = new Set<Element>();
   let remote = new Map<string, SAFLookup.Result>();
-  const requesting = new Set<string>();
+  const requesting = new Map<string, number>();
+  let queryGeneration = 0;
+  let settingsRevision = 0;
   let retryTimer = 0;
   const visibility = new IntersectionObserver(records => {
     if (!contextReady()) return;
@@ -51,34 +53,35 @@
   function readCache(value: unknown) {
     const cache = value as SAFLookup.Stored | undefined;
     remote = new Map(Object.entries(cache?.version === 1 ? cache.items || {} : {}).filter(
-      ([id, result]) => SAFLookup.validId(id) && SAFLookup.fresh(result, Date.now()) && (result.state !== "unavailable" || cache?.sessionAware)));
+      ([id, result]) => SAFLookup.validId(id) && SAFLookup.validResult(result, Date.now()) && (result.state !== "unavailable" || cache?.sessionAware)));
   }
   function resultFor(id: string): SAFLookup.Result | undefined {
     const result = remote.get(id);
-    return SAFLookup.fresh(result, Date.now()) ? result : undefined;
+    return SAFLookup.fresh(result, Date.now(), settings.cacheDays) ? result : undefined;
   }
   function requestNearby() {
     window.clearTimeout(retryTimer);
-    if (!ready || !contextReady() || settings.level === 0 || document.hidden) return;
+    if (!ready || !contextReady() || settings.mode === "off" || document.hidden) return;
     const visibleEntries = [...nearby].filter(e => e.isConnected && entries.has(e));
     // Nearest cards are serviced first, independent of DOM/carousel order.
     visibleEntries.sort((a, b) => Math.abs(a.getBoundingClientRect().top) - Math.abs(b.getBoundingClientRect().top));
     for (const element of visibleEntries) {
       const evidence = effective.get(element) || entries.get(element)!;
-      if (requesting.size >= 2) break;
-      if (evidence.disclosure || (settings.level === 3 && evidence.tagMatch) || Object.hasOwn(settings.allow, evidence.id) ||
+      if (requesting.size >= settings.concurrency) break;
+      if (evidence.disclosure || Object.hasOwn(settings.allow, evidence.id) ||
           resultFor(evidence.id) || requesting.has(evidence.id)) continue;
       const id = evidence.id;
-      requesting.add(id);
+      const generation = queryGeneration;
+      requesting.set(id, generation);
       void send({type: "SAF_LOOKUP", id}).then((result: unknown) => {
-        if (!contextReady()) return;
+        if (!contextReady() || generation !== queryGeneration || settings.mode === "off") return;
         const reply = result as SAFLookup.Result | undefined;
         if (reply?.state === "unavailable" && reply.expiresAt <= reply.checkedAt) remote.delete(id);
-        else remote.set(id, SAFLookup.fresh(result, Date.now()) ? result : SAFLookup.unavailable(Date.now(), "查詢未完成", 30000));
+        else remote.set(id, SAFLookup.validResult(result, Date.now()) ? result : SAFLookup.unavailable(Date.now(), "查詢未完成", 30000));
       }).catch(() => {
-        if (!contextReady()) return;
+        if (!contextReady() || generation !== queryGeneration || settings.mode === "off") return;
         remote.set(id, SAFLookup.unavailable(Date.now(), "查詢服務無法使用", 60000));
-      }).finally(() => { requesting.delete(id); if (contextReady()) render(); });
+      }).finally(() => { if (requesting.get(id) === generation) requesting.delete(id); if (contextReady()) render(); });
       if (stopped) return;
     }
     // Recheck expiration without rescanning the document. Hidden tabs issue no requests.
@@ -197,7 +200,7 @@
   function displayReason(e: SAF.Evidence): string {
     if (!e.disclosure) return SAF.reason(e);
     const uses = SAFDisclosure.classifyUses(e.disclosure);
-    if (!uses.length) return "AI 使用揭露 · 用途未明";
+    if (!uses.length) return "AI 使用揭露 · 用途不明";
     const selected = uses.some(category => settings.filterCategories[category]);
     return `AI 用途：${uses.map(category => SAFDisclosure.packs[category].label).join("、")}${selected ? "" : " · 未選取"}`;
   }
@@ -245,28 +248,40 @@
     if (stopped) return;
     for (const [element, evidence] of effective) {
       const isCard = element !== document.documentElement;
-      const match = Boolean(evidence.disclosure || evidence.tagMatch);
+      const match = SAF.matchesUses(evidence, settings.allow, settings.filterCategories);
       const result = isCard ? resultFor(evidence.id) : undefined;
       if (match) { matched++; candidates.set(evidence.id, evidence); }
       else if (result?.state === "not-found") checked++;
-      else unknown++;
+      else if (!evidence.disclosure) unknown++;
       if (requesting.has(evidence.id)) pending++;
       if (result?.state === "unavailable") failed++;
-      const hide = isCard && !revealing && SAF.shouldHide(evidence, settings.level, settings.allow, settings.filterCategories);
+      const hide = isCard && !revealing && SAF.shouldHide(evidence, settings.mode, settings.allow, settings.filterCategories);
       // Include newly accepted evidence too, so a queued older match can be cancelled.
       if (settings.autoIgnore) ignoreItems.set(evidence.id, evidence);
       if (hide) hidden++;
-      if (hide && settings.presentation === "remove") removed.push(element);
+      if (hide && settings.mode === "hide") removed.push(element);
       if (isCard) {
         watchCard(element);
-        SAF.syncMask(element, hide ? evidence : null, settings.presentation);
+        SAF.syncMask(element, hide ? evidence : null, SAF.presentation(settings.mode));
         const existing = element.querySelector<HTMLElement>(".saf-badge");
-        const showBadge = settings.level !== 0 && match && !(hide && settings.presentation === "remove");
+        const showBadge = settings.mode === "mark" && match;
         if (!showBadge) existing?.remove();
         else {
           const badge = existing || document.createElement("span");
-          const text = displayReason(evidence) + (Object.hasOwn(settings.allow, evidence.id) ? " · 永遠顯示" : "");
-          if (badge.textContent !== text) badge.textContent = text;
+          const uses = SAFDisclosure.classifyUses(evidence.disclosure);
+          const labels: SAF.FilterCategory[] = uses.length ? [...uses] : ["unknown"];
+          const signature = labels.join(",");
+          if (badge.dataset.uses !== signature) {
+            const ai = document.createElement("span"); ai.className = "saf-chip saf-chip-ai"; ai.textContent = "AI";
+            badge.replaceChildren(ai);
+            for (const category of labels) {
+              const chip = document.createElement("span"); chip.className = `saf-chip saf-chip-${category}`;
+              chip.textContent = SAF.categoryLabel(category); badge.append(chip);
+            }
+            badge.dataset.uses = signature;
+          }
+          badge.setAttribute("aria-label", `AI：${labels.map(SAF.categoryLabel).join("、")}。查看揭露`);
+          badge.title = "查看 AI 使用揭露";
           if (!existing) {
             badge.className = "saf-badge"; badge.tabIndex = 0; badge.setAttribute("role", "button");
             const show = (event: Event) => {
@@ -285,12 +300,14 @@
         }
         const checked = element.querySelector<HTMLElement>(".saf-checked");
         const hasResult = Boolean(evidence.disclosure) || result?.state === "not-found";
-        const showCheck = settings.level !== 0 && settings.showChecked && hasResult && !hide;
+        const showCheck = settings.mode !== "off" && settings.showChecked && hasResult && !(hide && settings.mode === "hide");
         if (!showCheck) checked?.remove();
         else if (!checked) {
           const check = document.createElement("span");
           check.className = "saf-checked";
-          check.textContent = "✓ 已檢查";
+          check.innerHTML = '<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 8 2.5 2.5L12 5"/></svg>';
+          check.setAttribute("role", "img");
+          check.setAttribute("aria-label", "已檢查；不代表沒有使用 AI");
           check.title = evidence.disclosure ? "已取得 AI 使用揭露；綠勾表示查詢完成。" : "已檢查商品頁，未找到 AI 揭露；不代表沒有使用 AI。";
           if (getComputedStyle(element).position === "static") element.classList.add("saf-badge-positioned");
           element.append(check);
@@ -298,13 +315,13 @@
           checked.title = evidence.disclosure ? "已取得 AI 使用揭露；綠勾表示查詢完成。" : "已檢查商品頁，未找到 AI 揭露；不代表沒有使用 AI。";
         }
         // Include any newly inserted badge in the mask's accessibility suppression.
-        if (hide && settings.presentation === "mask") SAF.syncMask(element, evidence);
+        if (hide && settings.mode === "mask") SAF.syncMask(element, evidence);
         if (!showBadge && !showCheck) element.classList.remove("saf-badge-positioned");
       }
     }
-    if (settings.autoIgnore && settings.level >= 2 && !document.hidden) {
+    if (settings.autoIgnore && SAF.filters(settings.mode) && !document.hidden) {
       const items = [...ignoreItems.values()].slice(0, 1000);
-      const signature = JSON.stringify({items, level: settings.level, filterCategories: settings.filterCategories, allow: settings.allow});
+      const signature = JSON.stringify({items, mode: settings.mode, filterCategories: settings.filterCategories, allow: settings.allow});
       if (signature !== ignoreSignature || Date.now() - ignoreSentAt >= 30000) {
         ignoreSignature = signature; ignoreSentAt = Date.now();
         void send({type: "SAF_IGNORE_CANDIDATES", items}).then(result => {
@@ -314,16 +331,16 @@
     } else ignoreSignature = "";
     removalLayout.sync(removed);
     const main = entries.get(document.documentElement);
-    const mainMatched = Boolean(main?.disclosure || main?.tagMatch);
-    status = {kind, total: entries.size, hidden, matched, unknown, pending, checked, failed, mainMatched, revealing, presentation: settings.presentation};
-    bar.hidden = settings.level === 0 || !entries.size;
+    const mainMatched = Boolean(main && SAF.matchesUses(main, settings.allow, settings.filterCategories));
+    status = {kind, total: entries.size, hidden, matched, unknown, pending, checked, failed, mainMatched, revealing, presentation: SAF.presentation(settings.mode)};
+    bar.hidden = settings.mode === "off" || !entries.size;
     host.style.display = bar.hidden ? "none" : "";
-    if (settings.level === 0 && dialog.open) dialog.close();
-    const action = settings.presentation === "remove" ? "剔除" : "遮蔽";
+    if (settings.mode === "off" && dialog.open) dialog.close();
+    const action = settings.mode === "hide" ? "隱藏" : "遮蔽";
     stat.textContent = main
-      ? `${mainMatched ? "這款遊戲有符合的訊號" : "本頁未取得 AI 使用訊號"}${hidden ? `；其他遊戲已${action} ${hidden} 筆` : ""}`
+      ? `${mainMatched ? "這款遊戲符合所選用途" : "這款遊戲未命中所選用途"}${hidden ? `；其他遊戲已${action} ${hidden} 筆` : ""}`
       : revealing ? `暫時顯示全部 ${entries.size} 筆`
-      : settings.level === 1 ? `已標示 ${matched} / ${entries.size} 筆` : `已${action} ${hidden} / ${entries.size} 筆`;
+      : settings.mode === "mark" ? `已標記 ${matched} / ${entries.size} 筆` : `已${action} ${hidden} / ${entries.size} 筆`;
     const issues = Array.from(entries.values()).filter(e => e.parseIssue).length;
     note.textContent = !main || entries.size > 1
       ? `背景確認 ${pending} 筆；${checked} 筆未找到披露；${unknown} 筆尚未確認。${failed ? ` ${failed} 筆查詢暫不可用。` : ""}未找到披露不代表沒有使用 AI。${issues ? ` ${issues} 筆標籤格式無法讀取。` : ""}`
@@ -348,7 +365,7 @@
   }
   function scan() {
     timer = 0;
-    if (!ready || !contextReady()) return;
+    if (!ready || !contextReady() || settings.mode === "off") return;
     appMatch = location.pathname.match(/^\/app\/(\d+)(?:\/|$)/);
     kind = SAF.pageKind(location.pathname);
     {
@@ -385,7 +402,7 @@
   function schedule() { if (contextReady() && !timer) timer = window.setTimeout(scan, 100); }
   window.addEventListener("popstate", schedule, {signal: events.signal});
   const observer = new MutationObserver(records => {
-    if (!contextReady()) return;
+    if (!contextReady() || settings.mode === "off") return;
     let relevant = false;
     for (const record of records) {
       const el = record.target instanceof Element ? record.target : record.target.parentElement;
@@ -402,19 +419,29 @@
     if (relevant) schedule();
   });
   if (!contextReady()) return;
+  function applySettings(next: SAF.Settings) {
+    const wasOff = settings.mode === "off";
+    if (settings.mode !== next.mode || JSON.stringify(settings.filterCategories) !== JSON.stringify(next.filterCategories)) revealing = false;
+    if (next.mode === "off" && !wasOff) { queryGeneration++; requesting.clear(); }
+    settings = next;
+    ignoreSignature = "";
+    if (wasOff && next.mode !== "off") {
+      for (const element of entries.keys()) dirty.add(element);
+      scan();
+    } else render();
+    if (dialog.open && currentDialog) openReason(currentDialog);
+  }
   try {
     chrome.storage.onChanged.addListener((changes, area) => {
       if (area !== "local" || !contextReady()) return;
-      if (changes.level) { settings.level = SAF.normalizeLevel(changes.level.newValue); revealing = false; }
-      if (changes.presentation) { settings.presentation = SAF.normalizePresentation(changes.presentation.newValue); revealing = false; }
-      if (changes.filterCategories) { settings.filterCategories = SAF.normalizeCategories(changes.filterCategories.newValue); revealing = false; }
-      if (changes.autoIgnore) { settings.autoIgnore = changes.autoIgnore.newValue === true; ignoreSignature = ""; }
-      if (changes.showChecked) settings.showChecked = changes.showChecked.newValue !== false;
-      if (changes.allow) settings.allow = SAF.cleanAllow(changes.allow.newValue);
       if (changes.disclosureCache) readCache(changes.disclosureCache.newValue);
-      if (ready && (changes.level || changes.presentation || changes.filterCategories || changes.autoIgnore || changes.showChecked || changes.allow || changes.disclosureCache)) {
+      if (SAF.settingKeys.some(key => changes[key])) {
+        const revision = ++settingsRevision;
+        void SAF.getSettings().then(next => {
+          if (contextReady() && ready && revision === settingsRevision) applySettings(next);
+        }).catch(report);
+      } else if (ready && changes.disclosureCache) {
         render();
-        if (dialog.open && currentDialog) openReason(currentDialog);
       }
     });
     chrome.runtime.onMessage.addListener((message, _sender, respond) => {
@@ -424,7 +451,7 @@
       if (message.type === "SAF_REFRESH") {
         SAF.getSettings().then(data => {
           if (!contextReady()) return;
-          settings = data; render(); if (!stopped) respond(status);
+          applySettings(data); if (!stopped) respond(status);
         }).catch(e => { report(e); if (!stopped) respond(null); });
         return true;
       }

@@ -1,6 +1,6 @@
 // Chrome API lifecycle simulation only; never shipped with the extension.
-testBridge.data.level = 3;
-testBridge.data.presentation = new URLSearchParams(location.search).has('remove') ? 'remove' : 'mask';
+testBridge.data.mode = new URLSearchParams(location.search).has('remove') ? 'hide' : 'mask';
+document.querySelector('.card').insertAdjacentHTML('beforeend','<section class="game_area_description" hidden><h2>AI Generated Content Disclosure</h2><i>AI artwork.</i></section>');
 chrome.runtime.id = 'fixture-extension';
 const lifecycleCase = new URLSearchParams(location.search).get('case') || 'sync';
 const lifecycleProbe = {calls: 0, errors: [], armed: false, settle: null};

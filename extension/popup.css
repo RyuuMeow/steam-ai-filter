@@ -16,7 +16,24 @@ main { width: 100%; }
   --start: var(--blue-light); --end: var(--blue);
   transition: --start var(--motion), --end var(--motion);
 }
-h1 { font-size: 16px; font-weight: 600; margin: 0 0 20px; }
+.panel-header { display: flex; align-items: center; gap: 8px; margin-bottom: 20px; }
+h1 { flex: 1; font-size: 16px; font-weight: 600; margin: 0; }
+h1:focus { outline: none; }
+.icon-button { display: grid; place-items: center; flex: 0 0 36px; height: 36px; padding: 8px; border: 0; border-radius: 8px; background: transparent; color: var(--muted); cursor: pointer; }
+.icon-button:hover { background: #edf0f4; color: var(--ink); }
+.icon-button svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+#back { margin-left: -8px; }
+#settings { margin-right: -8px; }
+.settings-list { display: grid; gap: 4px; }
+.settings-list button { display: flex; justify-content: space-between; align-items: center; width: 100%; min-height: 48px; padding: 10px 12px; border: 0; border-radius: 8px; background: transparent; color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
+.settings-list button:hover { background: #edf0f4; }
+.settings-list button span { color: var(--muted); font-size: 22px; line-height: 1; }
+.field { display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px; font-weight: 600; }
+select { width: 100%; min-height: 40px; border: 1px solid var(--line); border-radius: 8px; padding: 8px; background: var(--surface); color: var(--ink); font: inherit; }
+select:focus-visible { outline: 2px solid var(--blue-deep); outline-offset: 2px; }
+.help { color: var(--supporting); font-size: 12px; line-height: 1.7; margin: 8px 0 16px; }
+main > section[data-view] { animation: enter 160ms ease-out; }
+@keyframes enter { from { opacity: .4; transform: translateX(6px); } to { opacity: 1; transform: translateX(0); } }
 .slider-shell { position: relative; height: 48px; isolation: isolate; }
 .track {
   position: absolute; inset: 6px 0; border-radius: 10px; overflow: hidden;
@@ -57,27 +74,7 @@ input:disabled { cursor: wait; }
 [data-level="1"] .stops span:nth-child(2),
 [data-level="2"] .stops span:nth-child(3),
 [data-level="3"] .stops span:nth-child(4) { color: var(--ink); font-weight: 600; }
-#rule { display: flex; align-items: flex-start; gap: 6px; margin: 20px 0 0; white-space: pre-line; }
-#rule, #filter-help, #ignore-rule { font-size: 12px; line-height: 1.6; color: var(--supporting); }
-#broad-warning { flex: 0 0 20px; line-height: 0; }
-[data-level="3"] #rule { color: #896000; }
-.presentation {
-  position: relative; display: grid; grid-template-columns: 1fr 1fr;
-  margin-top: 16px; padding: 3px; height: 40px; border-radius: 8px; background: #edf0f4;
-}
-.presentation::before {
-  content: ""; position: absolute; inset: 3px auto 3px 3px; width: calc(50% - 3px);
-  background: var(--surface); border-radius: 5px; box-shadow: 0 1px 3px #2224351a;
-  transition: transform var(--motion);
-}
-.presentation:has(input[value="remove"]:checked)::before { transform: translateX(100%); }
-.presentation label { position: relative; display: grid; place-items: center; color: var(--muted); }
-.presentation input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
-.presentation span { pointer-events: none; }
-.presentation input:checked + span { color: var(--ink); font-weight: 600; }
-.presentation label:has(input:focus-visible) { outline: 2px solid var(--blue-deep); outline-offset: 2px; border-radius: 5px; }
-.presentation input:disabled { cursor: wait; }
-.option-group { margin-top: 16px; }
+#rule-text { font-size: 12px; line-height: 1.6; color: var(--supporting); margin: 16px 0 0; }
 .toggle-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 36px; cursor: pointer; }
 .toggle-row > span { font-weight: 600; }
 .toggle-row input {
@@ -92,32 +89,19 @@ input:disabled { cursor: wait; }
 .toggle-row input:checked::before { transform: translateX(16px); }
 .toggle-row input:focus-visible { outline-offset: 3px; }
 .toggle-row input:disabled { cursor: wait; opacity: .5; }
-#ignore-rule { margin: 2px 0 0; }
-#filter-options { color: var(--ink); }
-#filter-options summary { font-weight: 600; }
-#filter-selection { float: right; max-width: 150px; color: var(--muted); font-size: 12px; font-weight: 400; line-height: 21px; }
-#filter-help { margin: 4px 0 8px; }
-#category-list .toggle-row { min-height: 40px; }
+#filter-options { margin-top: 24px; }
+#filter-title { margin-bottom: 8px; }
+#category-list .toggle-row { min-height: 36px; }
 #ignore-status { white-space: pre-line; overflow-wrap: anywhere; margin: 8px 0; }
-[data-level="0"] .fill { opacity: 0; }
-[data-level="1"] .track { box-shadow: 0 0 12px #80d7ff25; }
-[data-level="2"] { --start: #4baeff; --end: var(--blue-deep); }
-[data-level="2"] .track { box-shadow: 0 0 18px #1677ff30; }
-[data-level="3"] { --start: var(--blue); --end: var(--violet); }
-[data-level="3"] .track { box-shadow: 0 0 24px #7855ee38; }
-.filter-control.sweep[data-level="3"] .fill::after {
-  content: ""; position: absolute; inset: 0;
-  background: linear-gradient(110deg, transparent 20%, #ffffff65 50%, transparent 80%);
-  transform: translateX(-100%); animation: sweep 900ms ease-out 1;
-}
-@keyframes sweep { to { transform: translateX(100%); } }
+[data-level="0"] { --start: #c5ccd6; --end: #8893a3; }
+[data-level="1"] { --start: #80d7ff; --end: #1677ff; }
+[data-level="2"] { --start: #f6d58b; --end: #b8780c; }
+[data-level="3"] { --start: #b3a0f2; --end: #7855ee; }
 .page-status { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 12px; justify-content: space-between; margin-top: 20px; }
 .page-status p { margin: 0; color: var(--muted); }
 .text-button { min-height: 32px; padding: 4px 0; border: 0; background: none; color: var(--blue-deep); font: inherit; white-space: nowrap; cursor: pointer; }
 .text-button:hover { text-decoration: underline; }
 #error { color: #9b2437; margin: 12px 0 0; }
-details { margin-top: 16px; color: var(--muted); }
-summary { cursor: pointer; min-height: 32px; padding: 4px 0; }
 #coverage, #cache-result { margin: 8px 0; }
 #cache-result[data-error="true"] { color: #9b2437; }
 #exceptions { margin-top: 16px; }

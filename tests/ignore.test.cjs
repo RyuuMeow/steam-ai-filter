@@ -8,7 +8,7 @@ for (const name of ['lookup','disclosure-keywords','disclosure','core','ignore']
 const I = ctx.SAFIgnore;
 const item = (id='101', patch={}) => ({id,title:`Game ${id}`,disclosure:'AI generated character art.',tagMatch:false,tagAvailable:true,parseIssue:false,...patch});
 function harness(saved) {
-  const h = {now:1_800_000_000_000, state:saved, settings:{level:2,presentation:'mask',filterCategories:ctx.SAF.normalizeCategories(),autoIgnore:false,showChecked:true,allow:{}},
+  const h = {now:1_800_000_000_000, state:saved, settings:ctx.SAF.normalizeSettings(),
     calls:[], posts:[], ignored:{}, accountId:'12345', scheduled:null, cache:{}, override:null};
   h.deps = {
     load:async()=>structuredClone(h.state),
@@ -38,11 +38,11 @@ function harness(saved) {
 test('defaults are disclosure, mask, art selected, checks shown, and account changes off', async()=>{
   ctx.chrome={storage:{local:{get:async()=>({})}}};
   const s=await ctx.SAF.getSettings();
-  assert.equal(s.level,2);assert.equal(s.presentation,'mask');assert.equal(s.filterCategories.art,true);
+  assert.equal(s.mode,'mask');assert.equal(s.filterCategories.art,true);
   assert.equal(s.showChecked,true);assert.equal(s.autoIgnore,false);
   ctx.chrome.storage.local.get=async()=>({level:1,presentation:'remove',showChecked:false,autoIgnore:'true'});
   const existing=await ctx.SAF.getSettings();
-  assert.equal(existing.level,1);assert.equal(existing.presentation,'remove');assert.equal(existing.showChecked,false);assert.equal(existing.autoIgnore,false);
+  assert.equal(existing.mode,'mark');assert.equal(existing.showChecked,false);assert.equal(existing.autoIgnore,false);
 });
 test('off never fetches; opt in requires a valid logged-in session without persisting its token', async()=>{
   const h=harness();await h.service.enqueue([item()]);await h.tick();
@@ -68,10 +68,10 @@ test('every candidate respects current level, selected categories and manual all
   assert.deepEqual(h.state.queue.map(x=>x.id),['104']);
   h.cache['104']={state:'disclosed',disclosure:'AI was used only for programming.',checkedAt:h.now,expiresAt:h.now+60000};
   await h.tick();assert.equal(h.posts.length,0);
-  h.settings.level=3;await h.service.enqueue([item('103',{disclosure:null,tagMatch:true})]);
-  await h.tick();assert.deepEqual(h.posts,['103']);
+  h.settings.mode='hide';await h.service.enqueue([item('103',{disclosure:null,tagMatch:true})]);
+  await h.tick();assert.deepEqual(h.posts,[]);
   h.settings.filterCategories.code=true;await h.service.enqueue([item('102',{disclosure:'AI was used only for code.'})]);await h.tick();
-  assert.deepEqual(h.posts,['103','102']);
+  assert.deepEqual(h.posts,['102']);
 });
 test('unknown/malformed candidates cannot trigger writes and queue size is bounded', async()=>{
   const h=harness();await h.enable();
@@ -81,7 +81,7 @@ test('unknown/malformed candidates cannot trigger writes and queue size is bound
   assert.equal(h.state.queue.length,200);
 });
 test('disabling, marking-only, or adding an exception cancels queued work', async()=>{
-  for(const change of [s=>s.autoIgnore=false,s=>s.level=1,s=>s.filterCategories.art=false,s=>s.allow['101']='allowed']){
+  for(const change of [s=>s.autoIgnore=false,s=>s.mode='mark',s=>s.filterCategories.art=false,s=>s.allow['101']='allowed']){
     const h=harness();await h.enable();await h.service.enqueue([item()]);
     change(h.settings);await h.service.reconcile();await h.tick();
     assert.equal(h.state.queue.length,0);assert.equal(h.posts.length,0);assert.equal(h.scheduled,null);
@@ -148,7 +148,7 @@ test('restart retains successful deduplication, pacing and pending items; stale 
   assert.equal(h.posts.length,2);assert.equal(h.state.queue.length,0);
 });
 test('queued explicit code-only update cancels earlier tag-only detection', async()=>{
-  const h=harness();h.settings.level=3;await h.enable();
+  const h=harness();h.settings.mode='hide';await h.enable();
   await h.service.enqueue([item('101',{disclosure:null,tagMatch:true})]);
   await h.service.enqueue([item('101',{disclosure:'AI was used only for code.',tagMatch:true})]);
   await h.tick();assert.equal(h.posts.length,0);

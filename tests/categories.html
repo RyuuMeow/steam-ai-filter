@@ -20,7 +20,7 @@ pre { white-space: pre-wrap; font: 12px/1.6 Consolas, monospace; }
 <main>
   <h1>AI 用途過濾 · 功能預覽</h1>
   <div class="layout">
-    <iframe src="/preview-popup.html" title="插件彈窗預覽"></iframe>
+    <iframe data-preview="/preview-popup.html" title="插件彈窗預覽"></iframe>
     <div class="store"><div class="catalog">
       <a class="card" id="code" href="https://store.steampowered.com/app/901/" data-ds-tagids="[7926]">
         <img alt="僅程式輔助" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E"><span class="title">僅程式輔助 · 保留</span>
@@ -55,4 +55,5 @@ pre { white-space: pre-wrap; font: 12px/1.6 Consolas, monospace; }
 <script src="/dist/lookup.js"></script><script src="/dist/disclosure-keywords.js"></script><script src="/dist/disclosure.js"></script><script src="/dist/core.js"></script>
 <script src="/dist/mask.js"></script><script src="/dist/layout.js"></script><script src="/dist/content.js"></script>
 <script src="/tests/categories.js"></script>
+<script>document.querySelector("iframe[data-preview]")?.setAttribute("src", "/preview-popup.html");</script>
 </html>

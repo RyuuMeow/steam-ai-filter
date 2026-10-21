@@ -89,12 +89,14 @@ namespace SAFIgnore {
     private async persist(enabled?: boolean) {
       await this.deps.save(structuredClone(this.state), enabled);
     }
-    private active(settings: SAF.Settings) { return settings.autoIgnore && settings.level >= 2; }
+    private active(settings: SAF.Settings) { return settings.autoIgnore && SAF.filters(settings.mode); }
     private async allowed(item: Item, settings: SAF.Settings, snapshot?: Record<string, SAFLookup.Result>): Promise<boolean> {
       const cache = (snapshot || await this.deps.cache())[item.id];
-      if (cache?.state === "disclosed" && SAFLookup.fresh(cache, this.now())) item.disclosure = cache.disclosure;
+      if (cache && !SAFLookup.fresh(cache, this.now(), settings.cacheDays)) return false;
+      if (cache?.state === "disclosed") item.disclosure = cache.disclosure;
+      if (cache?.state === "not-found" || cache?.state === "unavailable") return false;
       return this.active(settings) && item.expiresAt > this.now()
-        && SAF.shouldHide(item, settings.level, settings.allow, settings.filterCategories);
+        && SAF.shouldHide(item, settings.mode, settings.allow, settings.filterCategories);
     }
     private async prune(settings: SAF.Settings) {
       const cache = await this.deps.cache();
@@ -152,7 +154,7 @@ namespace SAFIgnore {
           const e = evidence(raw);
           if (!e || Object.hasOwn(this.state.done, e.id)) continue;
           const old = this.state.queue.find(item => item.id === e.id);
-          if (!SAF.shouldHide(e, settings.level, settings.allow, settings.filterCategories)) {
+          if (!SAF.shouldHide(e, settings.mode, settings.allow, settings.filterCategories)) {
             if (old) this.state.queue = this.state.queue.filter(item => item !== old);
             continue;
           }

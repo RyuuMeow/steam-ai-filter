@@ -16,7 +16,7 @@
     document.querySelector('main').append(card); return card;
   };
   try {
-    const removeMode = testBridge.data.presentation === 'remove';
+    const removeMode = testBridge.data.mode === 'hide';
     await until(() => document.querySelector(removeMode ? '.saf-removed' : '.saf-blocked'));
     await wait(100);
     assert(!lifecycleProbe.errors.length, 'closed popup receiver is an expected nonfatal condition');

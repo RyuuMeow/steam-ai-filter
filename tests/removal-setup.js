@@ -1,4 +1,4 @@
-testBridge.data.level = 2;
+testBridge.data.mode = 'mask';
 testBridge.data.allow = {'704': 'Allowed game'};
 let finishLookup;
 window.testLookup = id => id === '708'

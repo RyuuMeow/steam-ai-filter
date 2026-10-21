@@ -7,14 +7,24 @@ var SAFLookup;
         return { state: "unavailable", disclosure: null, checkedAt: now, expiresAt: now + retry, issue };
     }
     SAFLookup.unavailable = unavailable;
-    function fresh(value, now) {
+    function validResult(value, now) {
         if (!value || typeof value !== "object")
             return false;
         const r = value;
         return ["disclosed", "not-found", "unavailable"].includes(r.state) &&
             Number.isFinite(r.checkedAt) && r.checkedAt <= now && Number.isFinite(r.expiresAt) &&
-            r.expiresAt > now && r.expiresAt <= now + 7 * DAY &&
+            r.expiresAt > r.checkedAt && r.expiresAt <= r.checkedAt + 30 * DAY &&
             (r.state === "disclosed" ? typeof r.disclosure === "string" && r.disclosure.length > 0 && r.disclosure.length <= 2000 : r.disclosure === null);
+    }
+    SAFLookup.validResult = validResult;
+    function expiresAt(result, days) {
+        if (days === undefined || result.state === "unavailable")
+            return result.expiresAt;
+        return result.checkedAt + (days || (result.state === "disclosed" ? 7 : 1)) * DAY;
+    }
+    SAFLookup.expiresAt = expiresAt;
+    function fresh(value, now, days) {
+        return validResult(value, now) && expiresAt(value, days) > now;
     }
     SAFLookup.fresh = fresh;
     function plain(html) {
@@ -81,7 +91,7 @@ var SAFLookup;
                     return;
                 this.cooldownUntil = Number.isFinite(data.cooldownUntil) ? Math.min(data.cooldownUntil, this.now() + 3600000) : 0;
                 for (const [id, result] of Object.entries(data.items || {}).slice(-500)) {
-                    if (SAFLookup.validId(id) && fresh(result, this.now()) && (result.state !== "unavailable" || data.sessionAware))
+                    if (SAFLookup.validId(id) && validResult(result, this.now()) && (result.state !== "unavailable" || data.sessionAware))
                         this.items[id] = result;
                 }
             });
@@ -97,8 +107,8 @@ var SAFLookup;
             }
             if (!this.enabled)
                 return unavailable(this.now(), "過濾已關閉", 0);
-            if (fresh(this.items[id], this.now()))
-                return this.items[id];
+            if (fresh(this.items[id], this.now(), this.options.cacheDays ?? 0))
+                return this.withPolicy(this.items[id]);
             if (this.cooldownUntil > this.now())
                 return unavailable(this.now(), "Steam 暫時限制查詢", this.cooldownUntil - this.now());
             const existing = this.pending.get(id);
@@ -115,6 +125,19 @@ var SAFLookup;
             this.enabled = enabled;
             if (!enabled)
                 this.cancel();
+        }
+        configure(policy) {
+            this.options.gap = policy.requestGap;
+            this.options.concurrency = policy.concurrency;
+            this.options.cacheDays = policy.cacheDays;
+            if (this.timer)
+                clearTimeout(this.timer);
+            this.timer = undefined;
+            // Lower limits drain active requests naturally; new work observes the latest policy.
+            this.pump();
+        }
+        withPolicy(result) {
+            return { ...result, expiresAt: expiresAt(result, this.options.cacheDays ?? 0) };
         }
         cancel() {
             this.generation++;
@@ -136,7 +159,8 @@ var SAFLookup;
         }
         persist() {
             const now = this.now();
-            const sorted = Object.entries(this.items).filter(([, r]) => fresh(r, now)).sort((a, b) => b[1].checkedAt - a[1].checkedAt).slice(0, 500);
+            const sorted = Object.entries(this.items).filter(([, r]) => fresh(r, now, this.options.cacheDays ?? 0))
+                .map(([id, result]) => [id, this.withPolicy(result)]).sort((a, b) => b[1].checkedAt - a[1].checkedAt).slice(0, 500);
             this.items = Object.fromEntries(sorted);
             const snapshot = { version: 1, items: { ...this.items }, cooldownUntil: this.cooldownUntil, sessionAware: true };
             const write = this.writes.catch(() => undefined).then(() => this.options.save(snapshot));
@@ -144,7 +168,7 @@ var SAFLookup;
             return write;
         }
         pump() {
-            if (!this.enabled || !this.queue.length || this.active.size >= 2 || this.timer)
+            if (!this.enabled || !this.queue.length || this.active.size >= (this.options.concurrency ?? 2) || this.timer)
                 return;
             if (this.cooldownUntil > this.now()) {
                 for (const job of this.queue.splice(0)) {
@@ -191,6 +215,7 @@ var SAFLookup;
             finally {
                 clearTimeout(timeout);
             }
+            result = this.withPolicy(result);
             if (job.generation === this.generation && this.enabled) {
                 this.items[job.id] = result;
                 try {
