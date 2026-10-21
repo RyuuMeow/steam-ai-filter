@@ -18,6 +18,7 @@
   const entries = new Map<Element, SAF.Evidence>();
   let effective = new Map<Element, SAF.Evidence>();
   const watched = new WeakSet<Element>();
+  const rendered = new WeakMap<Element, string>();
   const dirty = new Set<Element>();
   const removalLayout = new SAF.RemovalLayout();
   const nearby = new Set<Element>();
@@ -64,7 +65,11 @@
   function requestNearby() {
     window.clearTimeout(retryTimer);
     if (!ready || !contextReady() || settings.mode === "off" || document.hidden) return;
-    const visibleEntries = [...nearby].filter(e => e.isConnected && entries.has(e));
+    const visibleEntries = [...nearby].filter(e => {
+      const evidence = effective.get(e) || entries.get(e);
+      return e.isConnected && evidence && !evidence.disclosure && !Object.hasOwn(settings.allow, evidence.id) &&
+        !resultFor(evidence.id) && !requesting.has(evidence.id);
+    });
     // Nearest cards are serviced first, independent of DOM/carousel order.
     visibleEntries.sort((a, b) => Math.abs(a.getBoundingClientRect().top) - Math.abs(b.getBoundingClientRect().top));
     for (const element of visibleEntries) {
@@ -302,8 +307,11 @@
       if (hide) hidden++;
       if (hide && settings.mode === "hide") removed.push(element);
       if (isCard) {
+        const state = JSON.stringify([settings.mode, settings.language, settings.showChecked, evidence.id, evidence.title,
+          evidence.disclosure, result?.state, match, hide, locallyShown, actionState.get(evidence.id)]);
+        if (rendered.get(element) === state) continue;
         watchCard(element);
-        SAF.syncMask(element, hide ? evidence : null, SAF.presentation(settings.mode), maskActions(element, evidence));
+        if (!hide || settings.mode !== "mask") SAF.syncMask(element, hide ? evidence : null, SAF.presentation(settings.mode));
         const existing = element.querySelector<HTMLElement>(".saf-badge");
         const showBadge = settings.mode === "mark" && match;
         if (!showBadge) existing?.remove();
@@ -372,6 +380,7 @@
         // Include any newly inserted badge in the mask's accessibility suppression.
         if (hide && settings.mode === "mask") SAF.syncMask(element, evidence, "mask", maskActions(element, evidence));
         if (!showBadge && !showCheck && !(locallyShown && match)) element.classList.remove("saf-badge-positioned");
+        rendered.set(element, state);
       }
     }
     if (settings.autoIgnore && SAF.filters(settings.mode) && !document.hidden) {
@@ -398,7 +407,7 @@
     shadow.querySelector<HTMLElement>("#matches")!.hidden = !showMatches && !mainMatched;
     // Shadow-root updates do not feed the page observer.
     list.replaceChildren();
-    for (const e of candidates.values()) {
+    for (const e of (showMatches || mainMatched) ? candidates.values() : []) {
       const li = document.createElement("li"), button = document.createElement("button");
       button.textContent = `${e.title} · ${displayReason(e)}${Object.hasOwn(settings.allow, e.id) ? t("allow.suffix") : ""}`;
       button.onclick = () => openReason(e);
@@ -425,11 +434,13 @@
           element.querySelector(".saf-badge")?.remove(); entries.delete(element);
           element.querySelector(".saf-checked")?.remove();
           element.querySelector(".saf-remask")?.remove(); revealed.delete(element); hovered.delete(element); hoverSuppressed.delete(element);
+          rendered.delete(element);
           visibility.unobserve(element); nearby.delete(element);
         }
       }
       for (const card of cards) {
         if (entries.has(card) && !dirty.has(card)) continue;
+        rendered.delete(card);
         const id = SAF.cardId(card);
         if (!id || !/^\d+$/.test(id)) {
           SAF.syncMask(card, null); card.querySelector(".saf-badge")?.remove();

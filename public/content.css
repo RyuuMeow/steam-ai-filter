@@ -12,17 +12,19 @@
 }
 .saf-carousel-pagination.saf-carousel-pagination { display: none !important; }
 .saf-blocked { isolation: isolate; overflow: hidden !important; cursor: pointer !important; }
-.saf-blocked > :not(.saf-mask) { pointer-events: none !important; }
+.saf-blocked > :not(.saf-mask) { visibility: hidden !important; pointer-events: none !important; }
 .saf-blocked::before, .saf-blocked::after { visibility: hidden !important; }
 .saf-mask {
   position: absolute !important; inset: 0 !important; z-index: 2147483646 !important;
   display: flex !important; flex-direction: column !important; align-items: center !important; justify-content: center !important;
   gap: 6px !important; padding: 8px !important; box-sizing: border-box !important;
-  background: #263442a8 !important; backdrop-filter: blur(18px) saturate(.65) !important;
+  background: #263442 !important; overflow: hidden !important; isolation: isolate;
   color: #f0f4f8 !important; border-radius: inherit !important;
   font: 14px/1.4 "Segoe UI", "Microsoft JhengHei", sans-serif !important;
   text-align: center !important; white-space: normal !important; opacity: 1 !important; visibility: visible !important;
 }
+.saf-mask-art { position: absolute !important; inset: -12px !important; z-index: -1 !important; width: calc(100% + 24px) !important; height: calc(100% + 24px) !important; max-width: none !important; min-height: 0 !important; margin: 0 !important; padding: 0 !important; border: 0 !important; object-fit: cover !important; background: none !important; filter: blur(10px) !important; opacity: .32 !important; pointer-events: none !important; }
+.saf-mask-art[hidden] { display: none !important; }
 .saf-mask-label { color: inherit !important; font: 600 14px/1.4 "Segoe UI", "Microsoft JhengHei", sans-serif !important; text-shadow: 0 1px 3px #0008; transition: opacity 140ms; }
 .saf-mask-actions { position: absolute; inset: 4px; display: flex; flex-wrap: wrap; gap: 4px; align-content: center; justify-content: center; align-items: center; opacity: 0; transition: opacity 140ms; }
 .saf-mask-actions button { appearance: none !important; border: 0 !important; border-radius: 4px !important; padding: 6px 8px !important; background: transparent !important; box-shadow: none !important; color: #fff !important; font: 600 13px/1.4 "Segoe UI", "Microsoft JhengHei", sans-serif !important; text-shadow: 0 1px 4px #000a; cursor: pointer; min-height: 30px; }
@@ -33,7 +35,6 @@
 .saf-blocked:is(:hover, :focus-within) .saf-mask-label, .saf-mask-busy .saf-mask-label { opacity: 0; }
 .saf-mask-status { position: absolute; bottom: 3px; left: 6px; right: 6px; padding: 3px; border-radius: 4px; background: #302025f0; color: #ffe5e5; font: 12px/1.3 "Segoe UI", sans-serif; }
 .saf-mask-status[hidden] { display: none !important; }
-@supports not (backdrop-filter: blur(18px)) { .saf-mask { background: #263442 !important; } }
 @media (hover: none) { .saf-mask-actions { opacity: 1; } .saf-mask-label { opacity: 0; } }
 .saf-blocked:focus-visible { outline: 2px solid #80d7ff !important; outline-offset: 3px !important; }
 .saf-home-badge { position: absolute !important; left: 8px !important; bottom: 8px !important; z-index: 5 !important; max-width: calc(100% - 16px) !important; }

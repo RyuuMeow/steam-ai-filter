@@ -26,6 +26,7 @@ browser.on('error', error => { browserLog += error.message; });
 const tests = [
   ['categories','/tests/categories.html?test=1'], ['removal','/tests/removal.html?test=1'], ['automation','/tests/automation.html?test=1'],
   ['settings','/tests/settings.html?test=1'], ['interactions','/tests/interactions.html?test=1'], ['popup-sizing','/tests/popup-sizing.html'], ['home','/?test=1'], ['search','/search/?test=1'],
+  ['mask-performance','/tests/mask-performance.html'],
   ['home-single','/tests/home-single.html?test=1'], ['layout','/tests/layout.html?test=1'], ['lookup','/?lookup=1'],
   ['storewide','/sale/nextfest?coverage=1'], ['recommendations','/app/620/?coverage=1'], ['detail','/app/4517370/'],
   ...['sync','async','id','pending','storage'].flatMap(kind => [false,true].map(remove => [`invalidation-${kind}${remove?'-hide':''}`,`/tests/invalidation.html?case=${kind}${remove?'&remove=1':''}`]))

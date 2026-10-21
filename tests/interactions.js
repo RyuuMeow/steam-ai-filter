@@ -19,7 +19,7 @@ if(location.search.includes('test=1'))(async()=>{
     await set({mode:'mask',filterCategories:{art:true}});
     assert(masked(card)&&!card.querySelector('.saf-checked'),'mask has no redundant check');
     assert(card.querySelector('.saf-mask-label').textContent==='AI生成內容'&&card.querySelectorAll('.saf-mask button').length===3,'mask has exact wording and three actions');
-    assert(getComputedStyle(card.querySelector('.saf-mask')).backdropFilter.includes('blur(18px)'),'frosted cover blurs the existing card');
+    assert(getComputedStyle(card.querySelector('.saf-mask-art')).filter.includes('blur(10px)')&&getComputedStyle(card.querySelector('.saf-mask')).backdropFilter==='none','frosted cover uses its thumbnail without live backdrop sampling');
     await pointer({type:'move',...point(card)});
     assert(getComputedStyle(card.querySelector('.saf-mask-actions')).opacity==='1','hover fades in the action row');
     card.querySelector('.saf-mask-label').click();

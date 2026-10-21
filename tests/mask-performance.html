@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en"><meta charset="utf-8"><title>Mask performance regression</title>
+<link rel="stylesheet" href="/dist/content.css">
+<style>
+body{margin:24px;background:#182738;color:#fff;font:14px system-ui}.catalog{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}.card{display:block;min-height:150px;background:#30485c;color:white;text-decoration:none}.card>img{width:100%;height:110px;object-fit:cover}.title{display:block;padding:8px}pre{white-space:pre-wrap}
+</style>
+<div class="catalog"></div><pre id="test-results"></pre>
+<script src="/tests/bridge.js"></script>
+<script>
+testBridge.data.mode='mask';testBridge.data.hoverReveal=true;
+const cards=document.querySelector('.catalog');
+for(let i=0;i<200;i++){
+ const card=document.createElement('a');card.className='card';card.href=`https://store.steampowered.com/app/${8000+i}/`;
+ card.innerHTML='<img alt="" src="data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'300\' height=\'150\'%3E%3Cpath fill=\'%23477481\' d=\'M0 0h300v150H0z\'/%3E%3C/svg%3E"><span class="title">Game '+i+'</span>';
+ testDisclosure(card,'AI-generated artwork.');cards.append(card);
+}
+</script>
+<script src="/dist/i18n.js"></script><script src="/dist/lookup.js"></script><script src="/dist/disclosure-keywords.js"></script><script src="/dist/disclosure.js"></script><script src="/dist/core.js"></script><script src="/dist/mask.js"></script><script src="/dist/layout.js"></script>
+<script>
+window.maskMetrics={calls:0,milliseconds:0};const originalSync=SAF.syncMask;
+SAF.syncMask=(...args)=>{const start=performance.now();maskMetrics.calls++;try{return originalSync(...args);}finally{maskMetrics.milliseconds+=performance.now()-start;}};
+</script>
+<script src="/dist/content.js"></script><script src="/tests/mask-performance.js"></script></html>
