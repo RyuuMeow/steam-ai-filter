@@ -50,7 +50,7 @@ namespace SAF {
     // page behind every card with backdrop-filter while Steam scrolls/animates.
     const source = Array.from(card.querySelectorAll<HTMLImageElement>("img")).find(image => !image.closest(".saf-mask, .saf-badge, .saf-checked, .saf-remask"));
     const art = cover.querySelector<HTMLImageElement>(".saf-mask-art")!;
-    const url = source?.currentSrc || source?.getAttribute("src");
+    const url = source?.getAttribute("src") || source?.currentSrc;
     if (url) { if (art.getAttribute("src") !== url) art.src = url; art.hidden = false; }
     else { art.removeAttribute("src"); art.hidden = true; }
     const label = cover.querySelector(".saf-mask-label")!;

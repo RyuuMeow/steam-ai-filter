@@ -24,8 +24,9 @@
     lifecycleProbe.armed = true;
     if (lifecycleCase === 'id') chrome.runtime.id = undefined;
     if (lifecycleCase === 'storage') {
+      await testSettings({mode:'mark'});
+      document.querySelector('.saf-badge').click();
       chrome.storage.local.get = () => { throw new Error('Extension context invalidated.'); };
-      document.querySelector('#saf-root').shadowRoot.querySelector('#list button').click();
       document.querySelector('#saf-root').shadowRoot.querySelector('#allow').click();
     } else addCard(602);
     if (lifecycleCase === 'pending') {

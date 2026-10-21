@@ -194,10 +194,14 @@ namespace SAF {
     const ids = ownerIds(card);
     return ids.size === 1 ? [...ids][0] : null;
   }
+  function cardMedia(element: Element): Element[] {
+    return [...element.querySelectorAll("img, video, [style*='background-image']")]
+      .filter(media => !media.closest(".saf-mask, .saf-badge, .saf-checked, .saf-remask"));
+  }
   export function collectCards(root: Document, _kind?: PageKind): Element[] {
     const metadata = new Map<Element, {ids: Set<string>; media: number}>();
     const info = (el: Element) => {
-      if (!metadata.has(el)) metadata.set(el, {ids: ownerIds(el), media: el.querySelectorAll("img, video, [style*='background-image']").length});
+      if (!metadata.has(el)) metadata.set(el, {ids: ownerIds(el), media: cardMedia(el).length});
       return metadata.get(el)!;
     };
     const candidates = new Set<Element>();
@@ -216,7 +220,7 @@ namespace SAF {
         const details = info(parent);
         if (details.ids.size !== 1 || !details.ids.has(id)) break;
         if (parent.querySelector("a[href*='/bundle/'], a[href*='/sub/'], nav, [role=navigation]")) break;
-        const extraMedia = [...parent.querySelectorAll("img, video, [style*='background-image']")].filter(m => !card.contains(m));
+        const extraMedia = cardMedia(parent).filter(m => !card.contains(m));
         const sameGameAssets = extraMedia.length > 0 && extraMedia.every(m => {
           const source = m.getAttribute("data-image-url") || m.getAttribute("src") || m.getAttribute("poster") || m.getAttribute("style") || "";
           return source.match(/\/steam\/apps\/([1-9]\d{0,9})\//)?.[1] === id;

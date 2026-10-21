@@ -32,7 +32,7 @@ if(new URLSearchParams(location.search).has('test')) (async()=>{
     assert(getComputedStyle(hero).position==='absolute','carousel absolute positioning is preserved');
     const rect=hero.getBoundingClientRect(),maskRect=hero.querySelector('.saf-mask').getBoundingClientRect();
     assert(rect.width===maskRect.width&&rect.height===maskRect.height&&rect.height>0,'frosted mask fills card without collapsing its dimensions');
-    assert(getComputedStyle(hero.querySelector('.saf-mask')).backdropFilter.includes('blur(18px)'),'mask uses frosted blur');
+    assert(getComputedStyle(hero.querySelector('.saf-mask')).backdropFilter==='none'&&getComputedStyle(hero.querySelector('.saf-mask-art')).filter.includes('blur(10px)'),'mask uses a local blurred thumbnail without backdrop sampling');
     assert(hero.querySelector('.capsule').inert && hero.querySelector('.capsule').getAttribute('aria-hidden')==='true','covered art is accessibly suppressed beneath the blur');
     let hovered=0;hero.onmouseover=()=>hovered++;
     hero.querySelector('.saf-mask').dispatchEvent(new MouseEvent('mouseover',{bubbles:true}));
