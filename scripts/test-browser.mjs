@@ -25,7 +25,7 @@ browser.stderr.on('data', chunk => { browserLog += chunk; });
 browser.on('error', error => { browserLog += error.message; });
 const tests = [
   ['categories','/tests/categories.html?test=1'], ['removal','/tests/removal.html?test=1'], ['automation','/tests/automation.html?test=1'],
-  ['settings','/tests/settings.html?test=1'], ['popup-sizing','/tests/popup-sizing.html'], ['home','/?test=1'], ['search','/search/?test=1'],
+  ['settings','/tests/settings.html?test=1'], ['interactions','/tests/interactions.html?test=1'], ['popup-sizing','/tests/popup-sizing.html'], ['home','/?test=1'], ['search','/search/?test=1'],
   ['home-single','/tests/home-single.html?test=1'], ['layout','/tests/layout.html?test=1'], ['lookup','/?lookup=1'],
   ['storewide','/sale/nextfest?coverage=1'], ['recommendations','/app/620/?coverage=1'], ['detail','/app/4517370/'],
   ...['sync','async','id','pending','storage'].flatMap(kind => [false,true].map(remove => [`invalidation-${kind}${remove?'-hide':''}`,`/tests/invalidation.html?case=${kind}${remove?'&remove=1':''}`]))
@@ -71,8 +71,22 @@ try {
     await delay(300);
     let state;
     for(let i=0;i<160;i++) {
-      const result=await send('Runtime.evaluate',{expression:'({status:document.documentElement.dataset.tests, output:document.querySelector("#test-results")?.textContent})',returnByValue:true});
+      const result=await send('Runtime.evaluate',{expression:'({status:document.documentElement.dataset.tests, output:document.querySelector("#test-results")?.textContent, pointer:window.testPointerAction})',returnByValue:true});
       state=result.result.value;
+      if(state?.pointer) {
+        const {type,x,y,toX,toY}=state.pointer;
+        await send('Runtime.evaluate',{expression:'window.testPointerAction=null'});
+        await send('Input.dispatchMouseEvent',{type:'mouseMoved',x,y});
+        if(type==='click'||type==='drag') {
+          await send('Input.dispatchMouseEvent',{type:'mousePressed',x,y,button:'left',clickCount:1});
+          if(type==='drag') for(let n=1;n<=12;n++) {
+            await send('Input.dispatchMouseEvent',{type:'mouseMoved',x:x+(toX-x)*n/12,y:y+(toY-y)*n/12,buttons:1});
+            await delay(15);
+          }
+          await send('Input.dispatchMouseEvent',{type:'mouseReleased',x:toX??x,y:toY??y,button:'left',clickCount:1});
+        }
+        await send('Runtime.evaluate',{expression:'window.testPointerDone=true'});
+      }
       if(state?.status)break;
       await delay(100);
     }
@@ -93,6 +107,20 @@ try {
       const shot=await send('Page.captureScreenshot',{format:'png'});
       await writeFile(`artifacts/browser-tests/preview-${mode}.png`,Buffer.from(shot.data,'base64'));
     }
+    await send('Runtime.evaluate',{expression:"testSettings({mode:'mask'})",awaitPromise:true});
+    const cardPoint=await send('Runtime.evaluate',{expression:"(()=>{const r=document.querySelector('#mixed').getBoundingClientRect();return{x:r.left+r.width/2,y:r.top+r.height/2}})()",returnByValue:true});
+    await send('Input.dispatchMouseEvent',{type:'mouseMoved',...cardPoint.result.value});await delay(250);
+    let shot=await send('Page.captureScreenshot',{format:'png'});
+    await writeFile('artifacts/browser-tests/preview-mask-actions.png',Buffer.from(shot.data,'base64'));
+    await send('Runtime.evaluate',{expression:"document.querySelector('#mixed [data-action=reveal]').click()"});await delay(200);
+    shot=await send('Page.captureScreenshot',{format:'png'});
+    await writeFile('artifacts/browser-tests/preview-revealed.png',Buffer.from(shot.data,'base64'));
+    for(const language of ['en','zh-Hans']) {
+      await send('Runtime.evaluate',{expression:`testSettings({mode:'mark',language:'${language}'})`,awaitPromise:true});await delay(200);
+      shot=await send('Page.captureScreenshot',{format:'png'});
+      await writeFile(`artifacts/browser-tests/preview-${language}.png`,Buffer.from(shot.data,'base64'));
+    }
+    await send('Runtime.evaluate',{expression:"testSettings({language:'zh-Hant'})",awaitPromise:true});
     await send('Runtime.evaluate',{expression:'document.querySelector("iframe").contentDocument.querySelector("#settings").click()'});
     for(const page of ['settings','network']) {
       if(page==='network') await send('Runtime.evaluate',{expression:'document.querySelector("iframe").contentDocument.querySelector("[data-open=network]").click()'});
@@ -100,6 +128,11 @@ try {
       const shot=await send('Page.captureScreenshot',{format:'png'});
       await writeFile(`artifacts/browser-tests/preview-${page}.png`,Buffer.from(shot.data,'base64'));
     }
+    const selectPoint=await send('Runtime.evaluate',{expression:"(()=>{const frame=document.querySelector('iframe'),f=frame.getBoundingClientRect(),r=frame.contentDocument.querySelector('#request-gap').getBoundingClientRect();return{x:f.left+r.left+r.width/2,y:f.top+r.top+r.height/2}})()",returnByValue:true});
+    await send('Input.dispatchMouseEvent',{type:'mousePressed',...selectPoint.result.value,button:'left',clickCount:1});
+    await send('Input.dispatchMouseEvent',{type:'mouseReleased',...selectPoint.result.value,button:'left',clickCount:1});await delay(200);
+    shot=await send('Page.captureScreenshot',{format:'png'});
+    await writeFile('artifacts/browser-tests/preview-dropdown.png',Buffer.from(shot.data,'base64'));
     console.log('Saved mode and settings screenshots in artifacts/browser-tests/.');
   }
 } finally { socket?.close();browser.kill();server.kill(); }

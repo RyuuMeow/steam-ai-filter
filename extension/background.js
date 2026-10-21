@@ -1,5 +1,5 @@
 "use strict";
-importScripts("lookup.js", "disclosure-keywords.js", "disclosure.js", "core.js", "ignore.js");
+importScripts("i18n.js", "lookup.js", "disclosure-keywords.js", "disclosure.js", "core.js", "ignore.js");
 (() => {
     const resolver = new SAFLookup.Resolver({
         load: async () => (await chrome.storage.local.get("disclosureCache")).disclosureCache,
@@ -16,6 +16,7 @@ importScripts("lookup.js", "disclosure-keywords.js", "disclosure.js", "core.js",
             // A delayed storage read must never re-enable work after a newer off setting.
             if (revision !== policyRevision)
                 return policyUpdate;
+            SAFI18n.setLanguage(settings.language);
             const until = stored.ignoreState?.cooldownUntil || 0;
             resolver.setEnabled(settings.mode !== "off" && until <= Date.now());
             resolver.configure(settings);
@@ -45,7 +46,7 @@ importScripts("lookup.js", "disclosure-keywords.js", "disclosure.js", "core.js",
     });
     const reportIgnoreFailure = () => {
         // A storage/runtime failure must fail closed, with an actionable UI message.
-        void chrome.storage.local.set({ autoIgnore: false, ignoreError: "自動不感興趣已停止，請重新開啟插件再試。" })
+        void chrome.storage.local.set({ autoIgnore: false, ignoreError: SAFI18n.t("automation.stopped") })
             .catch(() => console.error("Steam AI Filter: auto-ignore storage unavailable"));
     };
     chrome.alarms.onAlarm.addListener(alarm => {
@@ -72,7 +73,7 @@ importScripts("lookup.js", "disclosure-keywords.js", "disclosure.js", "core.js",
         if (sender.id !== chrome.runtime.id)
             return;
         if (message?.type === "SAF_IGNORE_ENABLE" && sender.url === chrome.runtime.getURL("popup.html")) {
-            ignore.enable().then(respond, () => respond({ ok: false, issue: "設定未能儲存，請再試一次。" }));
+            ignore.enable().then(respond, () => respond({ ok: false, issue: SAFI18n.t("error.save") }));
             return true;
         }
         if (message?.type === "SAF_CLEAR_CACHE" && sender.url === chrome.runtime.getURL("popup.html")) {
@@ -88,6 +89,10 @@ importScripts("lookup.js", "disclosure-keywords.js", "disclosure.js", "core.js",
         }
         if (url.origin !== "https://store.steampowered.com")
             return;
+        if (message?.type === "SAF_IGNORE_ONE") {
+            ignore.ignoreOne(message.item).then(respond, () => respond({ ok: false, issue: SAFI18n.t("mask.actionFailed") }));
+            return true;
+        }
         if (message?.type === "SAF_IGNORE_CANDIDATES") {
             ignore.enqueue(message.items).then(() => respond({ ok: true }), () => { reportIgnoreFailure(); respond({ ok: false }); });
             return true;
@@ -97,12 +102,12 @@ importScripts("lookup.js", "disclosure-keywords.js", "disclosure.js", "core.js",
         void updatePolicy().then(async ({ settings, until }) => {
             if (until > Date.now()) {
                 resolver.setEnabled(false);
-                return SAFLookup.unavailable(Date.now(), "Steam 要求稍後重試", until - Date.now());
+                return SAFLookup.unavailable(Date.now(), SAFI18n.t("lookup.retryLater"), until - Date.now());
             }
             if (Object.hasOwn(settings.allow || {}, message.id))
-                return SAFLookup.unavailable(Date.now(), "已設為永遠顯示", 0);
+                return SAFLookup.unavailable(Date.now(), SAFI18n.t("lookup.allowed"), 0);
             return resolver.get(message.id);
-        }).then(respond, () => respond(SAFLookup.unavailable(Date.now(), "查詢服務無法使用")));
+        }).then(respond, () => respond(SAFLookup.unavailable(Date.now(), SAFI18n.t("lookup.unavailable"))));
         return true;
     });
 })();

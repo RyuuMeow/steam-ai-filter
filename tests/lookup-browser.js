@@ -10,7 +10,7 @@
     assert(lookupCalls.length===0,'off makes no network requests');
     await testSettings({mode:'mask'});
     await until(()=>cards('501').every(c=>c.classList.contains('saf-blocked')));
-    assert(cards('501').every(c=>c.querySelector('.saf-mask-label').textContent==='已遮蔽'),'detail-only disclosure masks every copy of the app');
+    assert(cards('501').every(c=>c.querySelector('.saf-mask-label').textContent==='AI生成內容'),'detail-only disclosure masks every copy of the app');
     assert(lookupCalls.filter(id=>id==='501').length===1,'duplicate cards share one request');
     await until(async()=>(await state()).failed===1);
     assert(!cards('502')[0].classList.contains('saf-blocked')&&(await state()).checked===1,'valid absence stays visible and is counted separately');
@@ -23,10 +23,12 @@
     document.querySelector('.home_page_content').append(copy);
     await until(()=>copy.classList.contains('saf-blocked'));
     assert(lookupCalls.filter(id=>id==='501').length===1,'dynamically appended duplicate uses existing cache');
-    cards('501')[0].click();
+    await testSettings({mode:'mark'});
+    cards('501')[0].querySelector('.saf-badge').click();
     const shadow=document.querySelector('#saf-root').shadowRoot;
     assert(shadow.querySelector('#evidence').textContent.includes('Artwork was generated'),'reason dialog shows fetched disclosure as text');
     shadow.querySelector('#allow').click();await wait(200);shadow.querySelector('#close').click();
+    await testSettings({mode:'mask'});
     assert(cards('501').every(c=>!c.classList.contains('saf-blocked')),'allowlist overrides remote disclosure');
     await testSettings({allow:{},mode:'mark'});await wait(100);
     assert(cards('501').every(c=>!c.classList.contains('saf-blocked')&&c.querySelector('.saf-badge')),'mark-only level uses fetched evidence without masking');

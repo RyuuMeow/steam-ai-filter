@@ -26,7 +26,7 @@ if(new URLSearchParams(location.search).has('test')) (async()=>{
     assert((await SAF.getSettings()).concurrency===4,'network controls persist without dropping queued field edits');
     back();assert(doc.querySelector('#page-title').textContent==='設定'&&doc.activeElement.dataset.open==='network','back restores parent category and triggering focus');
     open('checking');change('#cache-days','30');await until(()=>testBridge.data.cacheDays===30);
-    assert(doc.querySelector('#cache-help').textContent.includes('30 天'),'cache policy updates its explanation');
+    assert(doc.querySelector('#cache-days').selectedOptions[0].textContent==='30 天'&&!doc.querySelector('#cache-help'),'cache policy is readable without duplicate explanations');
     await testSettings({cacheDays:1,requestGap:5000,concurrency:1});await wait(30);
     assert(doc.querySelector('#cache-days').value==='1'&&doc.querySelector('#concurrency').value==='1','other contexts update fields without changing the current page');
     assert(doc.querySelector('#page-title').textContent==='檢查與快取','cross-tab changes preserve navigation');

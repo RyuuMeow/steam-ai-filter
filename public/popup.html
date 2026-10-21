@@ -8,75 +8,77 @@
   <link rel="stylesheet" href="popup.css">
   <script src="disclosure-keywords.js" defer></script>
   <script src="disclosure.js" defer></script>
+  <script src="i18n.js" defer></script>
   <script src="core.js" defer></script>
   <script src="popup.js" defer></script>
 </head>
 <body>
   <main>
     <header class="panel-header">
-      <button id="back" class="icon-button" aria-label="返回上一層" title="返回" hidden>
+      <button id="back" class="icon-button" data-i18n-aria="nav.backLabel" data-i18n-title="nav.back" hidden>
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 5-7 7 7 7M5 12h14"/></svg>
       </button>
       <h1 id="page-title" tabindex="-1">AI 過濾</h1>
-      <button id="settings" class="icon-button" data-open="settings" aria-label="設定" title="設定">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9.5 3-.6 2.4-2 .9-2.2-.7-2.5 4.3L4 11.6v2.1l-1.8 1.7 2.5 4.3 2.2-.7 2 .9.6 2.1h5l.6-2.1 2-.9 2.2.7 2.5-4.3-1.8-1.7v-2.1l1.8-1.7-2.5-4.3-2.2.7-2-.9L14.5 3z" transform="translate(0 -1) scale(1 .96)"/><circle cx="12" cy="12" r="3"/></svg>
+      <button id="settings" class="icon-button" data-open="settings" data-i18n-aria="category.settings" data-i18n-title="category.settings">
+        <img src="icons/settings.svg" width="20" height="20" alt="">
       </button>
     </header>
     <section data-view="home">
       <div class="filter-control" data-level="2">
         <div class="slider-shell">
           <div class="track" aria-hidden="true"><div class="fill"></div><div class="dots"><i></i><i></i><i></i><i></i></div></div>
-          <input id="strength" type="range" min="0" max="3" step="1" value="2" disabled aria-label="AI 處理模式" aria-valuetext="遮蔽" aria-describedby="rule-text">
+          <div class="slider-thumb" aria-hidden="true"></div>
+          <input id="strength" type="range" min="0" max="3" step="any" value="2" disabled data-i18n-aria="mode.label">
         </div>
-        <div class="stops" aria-hidden="true"><span>關閉</span><span>標記</span><span>遮蔽</span><span>隱藏</span></div>
-        <p id="rule-text">遮蔽符合所選用途的遊戲，保留卡片位置。</p>
+        <div class="stops" aria-hidden="true"><span data-i18n="mode.off"></span><span data-i18n="mode.mark"></span><span data-i18n="mode.mask"></span><span data-i18n="mode.hide"></span></div>
       </div>
       <section id="filter-options" aria-labelledby="filter-title">
-        <h2 id="filter-title">過濾項目</h2>
-        <div id="category-list" role="group" aria-label="過濾項目"></div>
+        <h2 id="filter-title" data-i18n="filter.title"></h2>
+        <div id="category-list" role="group" data-i18n-aria="filter.title"></div>
       </section>
-      <div id="page-status" class="page-status" hidden>
-        <p id="status" role="status"></p><button id="reveal" class="text-button" hidden>暫時顯示</button>
-      </div>
     </section>
     <section data-view="settings" hidden>
-      <nav class="settings-list" aria-label="設定分類">
-        <button data-open="checking">檢查與快取<span aria-hidden="true">›</span></button>
-        <button data-open="network">網路設定<span aria-hidden="true">›</span></button>
-        <button data-open="display">顯示設定<span aria-hidden="true">›</span></button>
-        <button data-open="automation">自動化與例外<span aria-hidden="true">›</span></button>
+      <nav class="settings-list" data-i18n-aria="nav.categories">
+        <button data-open="checking"><span data-i18n="category.checking"></span><span aria-hidden="true">›</span></button>
+        <button data-open="network"><span data-i18n="category.network"></span><span aria-hidden="true">›</span></button>
+        <button data-open="display"><span data-i18n="category.display"></span><span aria-hidden="true">›</span></button>
+        <button data-open="automation"><span data-i18n="category.automation"></span><span aria-hidden="true">›</span></button>
+        <button data-open="language"><span data-i18n="category.language"></span><span aria-hidden="true">›</span></button>
       </nav>
     </section>
     <section data-view="checking" hidden>
-      <label class="field" for="cache-days"><span>重新檢查間隔</span>
-        <select id="cache-days" disabled aria-describedby="cache-help"><option value="0">預設</option><option value="1">1 天</option><option value="7">7 天</option><option value="30">30 天</option></select>
+      <label class="field" for="cache-days"><span data-i18n="label.cacheDays"></span>
+        <select id="cache-days" disabled><option value="0" data-i18n="option.cacheDefault"></option><option value="1"></option><option value="7"></option><option value="30"></option></select>
       </label>
-      <p id="cache-help" class="help">預設：有揭露 7 天，未找到揭露 1 天。過期後，下次遇到遊戲時重新檢查。</p>
-      <button id="clear-cache" class="text-button" disabled>清除查詢快取</button>
+      <button id="clear-cache" class="text-button" disabled data-i18n="action.clearCache"></button>
       <p id="cache-result" role="status" hidden></p>
-      <p id="coverage" class="help" hidden></p>
     </section>
     <section data-view="network" hidden>
-      <label class="field" for="request-gap"><span>請求間隔</span>
-        <select id="request-gap" disabled><option value="700">0.7 秒（預設）</option><option value="1000">1 秒</option><option value="2000">2 秒</option><option value="5000">5 秒</option></select>
+      <label class="field" for="request-gap"><span data-i18n="label.requestGap"></span>
+        <select id="request-gap" disabled><option value="700"></option><option value="1000"></option><option value="2000"></option><option value="5000"></option></select>
       </label>
-      <label class="field" for="concurrency"><span>最大並行數</span>
+      <label class="field" for="concurrency"><span data-i18n="label.concurrency"></span>
         <select id="concurrency" disabled><option value="1">1</option><option value="2">2（預設）</option><option value="3">3</option><option value="4">4</option></select>
       </label>
-      <p class="help">所有 Steam 分頁共用。Steam 要求稍後重試時，會優先等待。</p>
     </section>
     <section data-view="display" hidden>
-      <label class="toggle-row" for="show-checked"><span>顯示已檢查圖示</span><input id="show-checked" type="checkbox" role="switch" checked disabled aria-describedby="checked-help"></label>
-      <p id="checked-help" class="help">綠勾表示查詢完成，不代表沒有使用 AI。</p>
+      <label class="toggle-row" for="show-checked"><span data-i18n="label.showChecked"></span><input id="show-checked" type="checkbox" role="switch" checked disabled></label>
+      <label class="toggle-row" for="hover-reveal"><span data-i18n="label.hoverReveal"></span><input id="hover-reveal" type="checkbox" role="switch" disabled></label>
     </section>
     <section data-view="automation" hidden>
-      <label class="toggle-row" for="auto-ignore"><span>自動不感興趣</span><input id="auto-ignore" type="checkbox" role="switch" disabled aria-describedby="ignore-rule"></label>
-      <p id="ignore-rule" class="help">在遮蔽或隱藏模式下，將命中遊戲加入目前 Steam 帳號的忽略清單。關閉不會撤回已完成的操作。</p>
+      <label class="toggle-row" for="auto-ignore"><span data-i18n="label.autoIgnore"></span><input id="auto-ignore" type="checkbox" role="switch" disabled aria-describedby="ignore-rule"></label>
+      <p id="ignore-rule" class="help" data-i18n="automation.warning"></p>
       <p id="ignore-status" role="status" hidden></p>
       <section id="exceptions" aria-labelledby="exceptions-title" hidden>
-        <h2 id="exceptions-title">永遠顯示 <span id="allow-count"></span></h2><ul id="allow-list"></ul>
+        <h2 id="exceptions-title" data-i18n="allow.title"></h2><ul id="allow-list"></ul>
       </section>
     </section>
+    <section data-view="language" hidden>
+      <label class="field" for="language"><span data-i18n="label.language"></span>
+        <select id="language" disabled><option value="en">English</option><option value="zh-Hant">繁體中文</option><option value="zh-Hans">简体中文</option></select>
+      </label>
+    </section>
+    <p id="connection" role="status" hidden></p>
     <p id="error" role="alert" hidden></p>
   </main>
 </body>

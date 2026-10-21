@@ -21,7 +21,7 @@ frame.addEventListener('load', async () => {
     }
     doc.querySelector('#settings').click();
     await wait();
-    for(const category of ['checking','network','display','automation']) {
+    for(const category of ['checking','network','display','automation','language']) {
       doc.querySelector(`[data-open="${category}"]`).click();await wait();
       assert(Math.abs(doc.body.getBoundingClientRect().width-320)<1&&doc.documentElement.scrollWidth===320, `${category} page stays within popup width`);
       doc.querySelector('#back').click();await wait();

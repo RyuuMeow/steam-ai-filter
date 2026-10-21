@@ -24,10 +24,10 @@ if (new URLSearchParams(location.search).has('test')) (async () => {
     assert(originalArrowCalls===0,'native unfiltered carousel navigation is intercepted only while compacting');
     back.click(); await wait(600);
     assert(viewport.scrollLeft<=1 && back.disabled,'previous arrow returns to the first remaining card');
-    await chrome.tabs.sendMessage(1,{type:'SAF_REVEAL'}); await wait(60);
+    await testSettings({mode:'mark'}); await wait(60);
     assert(visible(row) && kept().length===6 && !root.classList.contains('saf-compact-carousel'),'temporary reveal restores full rows and the original carousel');
     assert(tray.style.width===originalTrackStyle.width && tray.style.transform===originalTrackStyle.transform && !tray.style.getPropertyValue('--saf-slide-width') && !viewport.hasAttribute('tabindex'),'native track styles and viewport accessibility are restored');
-    await chrome.tabs.sendMessage(1,{type:'SAF_REVEAL'}); await wait(60);
+    await testSettings({mode:'hide'}); await wait(60);
     assert(!visible(row) && kept().length===3,'resuming removal compacts everything again');
     document.querySelector('#mask').click(); await wait(60);
     assert(visible(row) && row.querySelector('.LibraryAssetExpandedDisplay.saf-blocked') && kept().length===6,'mask mode covers the complete game object and preserves layout');

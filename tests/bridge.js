@@ -3,6 +3,7 @@
   const owner = window.parent === window ? window : window.parent;
   owner.testBridge ||= {data:{mode:'mark',allow:{}}, changes:[], messages:[]};
   const bridge = owner.testBridge;
+  bridge.data.language ??= 'zh-Hant';
   window.testDisclosure = (element, text='AI-generated artwork.') => {
     let section=element.querySelector('.game_area_description');
     if(!text) {section?.remove();return;}
@@ -30,8 +31,10 @@
     },
     runtime:{
       id:'fixture-extension',
+      getURL:path=>'/dist/'+path,
       onMessage:{addListener:fn=>bridge.messages.push(fn)},
       sendMessage:async message=>{
+        if(message.type==='SAF_IGNORE_ONE') return owner.testIgnoreOne ? owner.testIgnoreOne(message.item) : {ok:false,issue:'Offline preview'};
         if(message.type==='SAF_IGNORE_ENABLE') return owner.testIgnore ? owner.testIgnore.enable() : {ok:false,issue:'此離線預覽不會修改 Steam 帳號。'};
         if(message.type==='SAF_IGNORE_CANDIDATES') {
           if(owner.testIgnore) await owner.testIgnore.enqueue(message.items);

@@ -26,9 +26,9 @@ if(new URLSearchParams(location.search).has('test'))(async()=>{
     await testSettings({mode:'hide'});await wait(60);
     assert(trailer.getBoundingClientRect().height===0&&trailer.classList.contains('saf-removed'),'remove collapses the entire trailer object');
     assert(card('5011').getBoundingClientRect().height>0&&games.getBoundingClientRect().height>0,'other games and the surrounding page remain visible');
-    await chrome.tabs.sendMessage(1,{type:'SAF_REVEAL'});await wait(60);
+    await testSettings({mode:'mark'});await wait(60);
     assert(trailer.getBoundingClientRect().height>0&&!trailer.classList.contains('saf-removed'),'temporary reveal restores the complete trailer');
-    await chrome.tabs.sendMessage(1,{type:'SAF_REVEAL'});await wait(60);
+    await testSettings({mode:'hide'});await wait(60);
     await testSettings({mode:'mask',allow:{'5014':'混合 AI 美術'}});await wait(60);
     assert(!popup.querySelector('#broad-warning')&&!document.querySelector('.saf-badge'),'broad control is removed and masking has no AI labels');
     popup.querySelector('#auto-ignore').click();

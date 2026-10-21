@@ -42,8 +42,8 @@ namespace SAFIgnore {
   export function parseSession(html: string): {accountId: string; sessionid: string} {
     const accountId = html.match(/\bg_AccountID\s*=\s*(\d+)\s*;/)?.[1];
     const sessionid = html.match(/\bg_sessionID\s*=\s*["']([a-zA-Z0-9]{12,128})["']\s*;/)?.[1];
-    if (!validAccount(accountId)) throw new Failure("請先登入 Steam，再關閉並開啟自動不感興趣。", "pause");
-    if (!sessionid) throw new Failure("無法確認 Steam 登入狀態，已暫停。", "pause");
+    if (!validAccount(accountId)) throw new Failure(SAFI18n.t("automation.loginRequired"), "pause");
+    if (!sessionid) throw new Failure(SAFI18n.t("automation.sessionUnknown"), "pause");
     return {accountId, sessionid};
   }
   export class Service {
@@ -131,7 +131,7 @@ namespace SAFIgnore {
             this.state.cooldownUntil = Math.max(this.state.cooldownUntil, error.until);
             await this.persist();
           }
-          return {ok: false, issue: error instanceof Failure ? error.message : "無法連線至 Steam，設定未開啟。"};
+          return {ok: false, issue: error instanceof Failure ? error.message : SAFI18n.t("automation.connectionEnableFailed")};
         }
       });
     }
@@ -139,7 +139,7 @@ namespace SAFIgnore {
       return this.run(async () => {
         const settings = await this.deps.settings();
         await this.prune(settings);
-        if (settings.autoIgnore && !this.state.accountId) this.state.paused = "請關閉再開啟自動不感興趣，以確認 Steam 帳號。";
+        if (settings.autoIgnore && !this.state.accountId) this.state.paused = SAFI18n.t("automation.confirmAccount");
         await this.persist();
         await this.schedule();
       });
@@ -172,20 +172,59 @@ namespace SAFIgnore {
         await this.schedule();
       });
     }
+    // A user click is a single operation; it never opts the account into automation.
+    async ignoreOne(value: unknown): Promise<{ok: boolean; issue?: string}> {
+      return this.run(async () => {
+        const entry = evidence(value);
+        if (!entry) return {ok: false, issue: SAFI18n.t("lookup.invalidId")};
+        const settings = await this.deps.settings();
+        SAFI18n.setLanguage(settings.language);
+        const waitUntil = Math.max(this.state.nextAt, this.state.cooldownUntil);
+        if (waitUntil > this.now()) return {ok: false, issue: SAFI18n.t(this.state.cooldownUntil > this.now() ? "automation.cooldown" : "automation.wait", {
+          time: new Date(waitUntil).toLocaleTimeString(settings.language, {hour: "2-digit", minute: "2-digit"})})};
+        // Reserve before fetching so repeated clicks and worker restarts cannot burst.
+        this.state.nextAt = this.now() + interval;
+        await this.persist();
+        try {
+          const session = await this.session();
+          if (this.state.accountId && this.state.accountId !== session.accountId) {
+            if (settings.autoIgnore) throw new Failure(SAFI18n.t("automation.accountChanged"), "pause");
+            const {nextAt, cooldownUntil} = this.state;
+            this.state = {...blank(), nextAt, cooldownUntil};
+          }
+          this.state.accountId = session.accountId;
+          const already = Object.hasOwn(await this.ignored(session.accountId), entry.id);
+          if (!already) {
+            await this.response(origin + "/recommended/ignorerecommendation/", {
+              method: "POST", body: new URLSearchParams({sessionid: session.sessionid, appid: entry.id, remove: "0"})
+            });
+            if (!Object.hasOwn(await this.ignored(session.accountId), entry.id))
+              throw new Failure(SAFI18n.t("automation.unconfirmed"), "retry");
+          }
+          this.complete({...entry, expiresAt: this.now() + lifetime, attempts: 0}, already);
+          await this.persist(); await this.schedule();
+          return {ok: true};
+        } catch (error) {
+          if (error instanceof Failure && error.kind === "rate") this.state.cooldownUntil = Math.max(this.state.cooldownUntil, error.until);
+          await this.persist(); await this.schedule();
+          return {ok: false, issue: error instanceof Failure ? error.message : SAFI18n.t("mask.actionFailed")};
+        }
+      });
+    }
     private async response(url: string, init?: RequestInit): Promise<Response> {
       let response: Response;
       try {
         response = await this.deps.fetch(url, {...init, credentials: "include", cache: "no-store",
           redirect: "error", signal: AbortSignal.timeout(12000)});
-      } catch { throw new Failure("Steam 連線失敗，稍後重試。", "retry"); }
+      } catch { throw new Failure(SAFI18n.t("automation.connectionFailed"), "retry"); }
       if (response.status === 429 || response.status === 503) {
         const header = response.headers.get("Retry-After") || "";
         const retry = /^\d+$/.test(header) ? this.now() + Number(header) * 1000 : Date.parse(header);
-        throw new Failure("Steam 要求稍後重試，自動不感興趣已暫停等待。", "rate",
+        throw new Failure(SAFI18n.t("automation.rateLimited"), "rate",
           Math.max(this.now() + 15 * 60000, Number.isFinite(retry) ? retry : 0));
       }
-      if (response.status === 401 || response.status === 403) throw new Failure("Steam 拒絕操作；請確認登入狀態後關閉再開啟。", "pause");
-      if (!response.ok) throw new Failure("Steam 暫時無法完成操作。", response.status >= 500 ? "retry" : "pause");
+      if (response.status === 401 || response.status === 403) throw new Failure(SAFI18n.t("automation.denied"), "pause");
+      if (!response.ok) throw new Failure(SAFI18n.t("automation.unavailable"), response.status >= 500 ? "retry" : "pause");
       return response;
     }
     private async session() {
@@ -197,16 +236,16 @@ namespace SAFIgnore {
       const response = await this.response(`${origin}/dynamicstore/userdata/?id=${accountId}&v=${this.now()}`);
       let data: {rgIgnoredApps?: unknown};
       try { data = await response.json(); }
-      catch { throw new Failure("無法讀取 Steam 忽略清單，已暫停。", "pause"); }
+      catch { throw new Failure(SAFI18n.t("automation.listUnreadable"), "pause"); }
       const ignored = data.rgIgnoredApps;
       if (!ignored || typeof ignored !== "object" || (Array.isArray(ignored) && ignored.length > 0))
-        throw new Failure("Steam 忽略清單格式已變更，已暫停。", "pause");
+        throw new Failure(SAFI18n.t("automation.listChanged"), "pause");
       return ignored as Record<string, unknown>;
     }
     private complete(item: Item, already: boolean) {
       this.state.done[item.id] = this.now();
       this.state.queue = this.state.queue.filter(i => i.id !== item.id);
-      this.state.last = `${already ? "已在忽略清單" : "已忽略"}：${item.title}`;
+      this.state.last = SAFI18n.t(already ? "automation.alreadyIgnored" : "automation.ignored", {title: item.title});
     }
     async tick(): Promise<void> {
       return this.run(async () => {
@@ -216,12 +255,12 @@ namespace SAFIgnore {
           await this.persist(); await this.schedule(); return;
         }
         if (!this.state.accountId) {
-          this.state.paused = "請關閉再開啟自動不感興趣，以確認 Steam 帳號。";
+          this.state.paused = SAFI18n.t("automation.confirmAccount");
           await this.persist(); await this.schedule(); return;
         }
         if (Math.max(this.state.nextAt, this.state.cooldownUntil) > this.now()) { await this.schedule(); return; }
         if (Object.keys(this.state.done).length >= 5000) {
-          this.state.paused = "本機忽略紀錄已達上限，已停止自動操作。";
+          this.state.paused = SAFI18n.t("automation.localLimit");
           await this.persist(); await this.schedule(); return;
         }
         const item = this.state.queue[0];
@@ -232,7 +271,7 @@ namespace SAFIgnore {
           const session = await this.session();
           if (session.accountId !== this.state.accountId) {
             this.state.queue = [];
-            throw new Failure("Steam 帳號已變更；請關閉再開啟自動不感興趣。", "pause");
+            throw new Failure(SAFI18n.t("automation.accountChanged"), "pause");
           }
           if (!await this.allowed(item, await this.deps.settings())) {
             this.state.queue = this.state.queue.filter(i => i !== item);
@@ -243,13 +282,13 @@ namespace SAFIgnore {
               method: "POST", body: new URLSearchParams({sessionid: session.sessionid, appid: item.id, remove: "0"})
             });
             // A 200 alone is insufficient: confirm the item in Steam's authoritative list.
-            if (!Object.hasOwn(await this.ignored(session.accountId), item.id)) throw new Failure("Steam 尚未確認忽略結果，稍後重新確認。", "retry");
+            if (!Object.hasOwn(await this.ignored(session.accountId), item.id)) throw new Failure(SAFI18n.t("automation.unconfirmed"), "retry");
             this.complete(item, false);
           } else {
             this.state.queue = this.state.queue.filter(i => i !== item);
           }
         } catch (error) {
-          const failure = error instanceof Failure ? error : new Failure("Steam 回應讀取失敗，稍後重新確認。", "retry");
+          const failure = error instanceof Failure ? error : new Failure(SAFI18n.t("automation.responseFailed"), "retry");
           if (failure.kind === "rate") {
             this.state.cooldownUntil = Math.max(this.state.cooldownUntil, failure.until);
             this.state.last = failure.message;
@@ -258,7 +297,7 @@ namespace SAFIgnore {
           } else {
             item.attempts++;
             this.state.last = failure.message;
-            if (item.attempts >= 3) this.state.paused = "連續操作失敗，已暫停。請確認 Steam 後關閉再開啟。";
+            if (item.attempts >= 3) this.state.paused = SAFI18n.t("automation.repeatedFailure");
             else this.state.nextAt = this.now() + (item.attempts === 1 ? 2 : 10) * 60000;
           }
         }

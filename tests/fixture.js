@@ -34,8 +34,8 @@ if(new URLSearchParams(location.search).has('test')) {
     testDisclosure(document.querySelector('[data-ds-appid="101"]'));testDisclosure(document.querySelector('[data-ds-appid="103"]'));await pause(250);
     assert(hidden()===2,'formal disclosures activate selected-use masking');
     assert(!document.querySelector('[data-ds-appid="104"]').classList.contains('saf-blocked'),'AI in title is not a match');
-    await message('SAF_REVEAL');assert(hidden()===0,'temporarily reveal restores cards');
-    await message('SAF_REVEAL');assert(hidden()===2,'restore filtering works');
+    await testSettings({mode:'mark'});assert(hidden()===0,'mark mode restores cards');
+    await testSettings({mode:'mask'});assert(hidden()===2,'restore filtering works');
     await testSettings({allow:{101:'Neon Companion'}});
     assert(hidden()===1,'allowlist overrides selected-use filtering');
     await testSettings({allow:{}});
@@ -88,7 +88,7 @@ if(new URLSearchParams(location.search).has('test')) {
     document.querySelectorAll('[data-ds-appid]').forEach(e=>{if(Number(e.dataset.dsAppid)>=1000)e.remove();});
     await pause(200);
     const frame=document.querySelector('iframe').contentDocument;
-    assert(frame.querySelector('#status').textContent.includes('2 / 4'),'open popup receives updated page counts');
+    assert(frame.querySelector('#strength').value==='1'&&!frame.querySelector('#status'),'open popup syncs the mode without duplicate counts');
     await testSettings({mode:'mark'});
     output.textContent+='ALL BROWSER TESTS PASSED\n';document.documentElement.dataset.tests='passed';
   })().catch(e=>{output.textContent+=`FAIL ${e.stack}`;document.documentElement.dataset.tests='failed';console.error(e);});

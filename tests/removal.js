@@ -40,11 +40,11 @@ if (new URLSearchParams(location.search).has('test')) (async () => {
     assert(card('unknown').getBoundingClientRect().top < normalY, 'remaining grid cards close the gap');
     assert(visible(card('tagged')) && visible(card('unknown')) && visible(card('allowed')), 'tag-only, unknown and allowlisted games remain visible');
     assert(original.getAttribute('aria-label') === 'Original game link' && !original.querySelector('img').inert, 'switching away from masks restores original accessibility');
-    assert(popup().querySelector('#status').textContent.includes('已隱藏 2 / 5') && popup().querySelector('#rule-text').textContent.includes('隱藏'), 'popup describes the committed removal mode');
-    assert(shadow().querySelector('#stat').textContent.includes('已隱藏 2 / 5'), 'page count includes removed cards with the correct action');
-    popup().querySelector('#reveal').click(); await until(() => removed() === 0);
-    assert(visible(original) && original === card('disclosed'), 'temporary reveal restores the same original card');
-    popup().querySelector('#reveal').click(); await until(() => removed() === 2);
+    assert(popup().querySelector('#strength').getAttribute('aria-valuetext')==='隱藏', 'popup names the committed removal mode');
+    assert(!shadow().querySelector('#matches').hidden, 'hidden games retain contextual access to reasons and exceptions');
+    await level(1); await until(() => removed() === 0);
+    assert(visible(original) && original === card('disclosed'), 'switching mode restores the same original card');
+    await level(3); await until(() => removed() === 2);
     assert(!visible(original), 'resume filtering restores removal');
     await level(3);
     assert(removed() === 2 && visible(card('allowed')) && visible(card('tagged')), 'hide mode preserves exceptions and ignores topic tags');

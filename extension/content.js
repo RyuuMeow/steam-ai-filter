@@ -1,11 +1,13 @@
 "use strict";
 (() => {
+    const t = SAFI18n.t;
     let appMatch = location.pathname.match(/^\/app\/(\d+)(?:\/|$)/);
     let kind = SAF.pageKind(location.pathname);
     if (document.getElementById("saf-root"))
         return;
     let settings = SAF.normalizeSettings();
-    let revealing = false;
+    const revealed = new Set(), hovered = new Set(), hoverSuppressed = new Set();
+    const actionState = new Map();
     let ready = false;
     let stopped = false;
     const events = new AbortController();
@@ -14,7 +16,7 @@
     let previousStatus = "";
     let ignoreSignature = "";
     let ignoreSentAt = 0;
-    let status = { kind, total: 0, hidden: 0, matched: 0, unknown: 0, revealing, presentation: SAF.presentation(settings.mode) };
+    let status = { kind, total: 0, hidden: 0, matched: 0, unknown: 0, presentation: SAF.presentation(settings.mode) };
     const entries = new Map();
     let effective = new Map();
     const watched = new WeakSet();
@@ -102,11 +104,11 @@
                 if (reply?.state === "unavailable" && reply.expiresAt <= reply.checkedAt)
                     remote.delete(id);
                 else
-                    remote.set(id, SAFLookup.validResult(result, Date.now()) ? result : SAFLookup.unavailable(Date.now(), "查詢未完成", 30000));
+                    remote.set(id, SAFLookup.validResult(result, Date.now()) ? result : SAFLookup.unavailable(Date.now(), t("lookup.incomplete"), 30000));
             }).catch(() => {
                 if (!contextReady() || generation !== queryGeneration || settings.mode === "off")
                     return;
-                remote.set(id, SAFLookup.unavailable(Date.now(), "查詢服務無法使用", 60000));
+                remote.set(id, SAFLookup.unavailable(Date.now(), t("lookup.unavailable"), 60000));
             }).finally(() => { if (requesting.get(id) === generation)
                 requesting.delete(id); if (contextReady())
                 render(); });
@@ -127,11 +129,10 @@
     const shadow = host.attachShadow({ mode: "open" });
     shadow.innerHTML = `
     <style>
-      :host{display:block;clear:both;margin:12px 0;font:14px/1.5 "Segoe UI","Microsoft JhengHei",sans-serif;color:#d6e4f1}
+      :host{display:block;clear:both;margin:0;font:14px/1.5 "Segoe UI","Microsoft JhengHei",sans-serif;color:#d6e4f1}
       *{box-sizing:border-box} [hidden]{display:none!important}
-      .bar{padding:12px 16px;background:#1c2d3c;border:1px solid #3a5368;border-radius:8px}
+      .bar{margin:12px 0;padding:12px 16px;background:#1c2d3c;border:1px solid #3a5368;border-radius:8px}
       .row{display:flex;gap:12px;align-items:center;flex-wrap:wrap} .row strong{font-weight:600}
-      .note{color:#afc4d7;font-size:12px;margin:6px 0 0}
       button{font:inherit;color:#a6ddff;cursor:pointer;background:transparent;border:0;padding:4px 0;text-align:left}
       button:hover{text-decoration:underline} button:focus-visible,summary:focus-visible{outline:2px solid #80d7ff;outline-offset:3px}
       summary{cursor:pointer;margin-top:8px} ul{list-style:none;margin:8px 0 0;padding:0;max-height:240px;overflow:auto}
@@ -141,19 +142,16 @@
       dialog button{color:#0053ea} .actions{display:flex;justify-content:space-between;gap:16px;margin-top:24px}
     </style>
     <section class="bar" hidden>
-      <div class="row"><strong>AI 過濾</strong><span id="stat"></span><button id="reveal" hidden>暫時顯示</button></div>
-      <p class="note" id="note"></p>
-      <details id="matches" hidden><summary>查看命中原因與例外</summary><ul id="list"></ul></details>
+      <div class="row"><span id="stat"></span></div>
+      <details id="matches" hidden><summary></summary><ul id="list"></ul></details>
       <p class="error" id="error" role="alert" hidden></p>
     </section>
     <dialog aria-labelledby="dialog-title">
       <h2 id="dialog-title"></h2><strong id="reason"></strong><p id="evidence"></p>
-      <div class="actions"><button id="allow"></button><button id="close">關閉</button></div>
+      <div class="actions"><button id="allow"></button><button id="close"></button></div>
     </dialog>`;
     const bar = shadow.querySelector(".bar");
     const stat = shadow.querySelector("#stat");
-    const note = shadow.querySelector("#note");
-    const reveal = shadow.querySelector("#reveal");
     const list = shadow.querySelector("#list");
     const dialog = shadow.querySelector("dialog");
     const allowButton = shadow.querySelector("#allow");
@@ -179,6 +177,7 @@
             element.classList.remove("saf-badge-positioned");
             element.querySelector(".saf-badge")?.remove();
             element.querySelector(".saf-checked")?.remove();
+            element.querySelector(".saf-remask")?.remove();
         }
         entries.clear();
         effective.clear();
@@ -191,9 +190,8 @@
             document.body.prepend(host);
         host.style.display = "";
         bar.hidden = false;
-        stat.textContent = "過濾已停止，請重新整理頁面。";
-        note.hidden = true;
-        reveal.hidden = true;
+        stat.textContent = t("error.stopped");
+        stat.hidden = false;
         allowButton.disabled = true;
         list.replaceChildren();
         shadow.querySelector("#matches").hidden = true;
@@ -208,7 +206,7 @@
         bar.hidden = false;
         const error = shadow.querySelector("#error");
         error.hidden = false;
-        error.textContent = "設定讀取或儲存失敗，請重新整理後再試。";
+        error.textContent = t("error.contentSettings");
     }
     function placeHost() {
         if (appMatch) {
@@ -238,9 +236,9 @@
         shadow.querySelector("#dialog-title").textContent = e.title;
         shadow.querySelector("#reason").textContent = displayReason(e);
         shadow.querySelector("#evidence").textContent = e.disclosure
-            ? `開發者揭露原文：\n\n${e.disclosure}${e.tagMatch ? "\n\n亦命中「人工智慧」標籤；標籤可能只代表遊戲題材。" : ""}`
-            : "此遊戲的頁面資料帶有「人工智慧 / Artificial Intelligence」標籤。這可能描述遊戲題材，不能證明使用生成式 AI 製作。";
-        allowButton.textContent = Object.hasOwn(settings.allow, e.id) ? "取消永遠顯示" : "永遠顯示這款遊戲";
+            ? t("disclosure.original", { disclosure: e.disclosure, tagNote: e.tagMatch ? t("disclosure.tagNote") : "" })
+            : t("disclosure.tagOnly");
+        allowButton.textContent = t(Object.hasOwn(settings.allow, e.id) ? "action.disallow" : "action.allow");
         if (!dialog.open)
             dialog.showModal();
     }
@@ -277,25 +275,70 @@
             return SAF.reason(e);
         const uses = SAFDisclosure.classifyUses(e.disclosure);
         if (!uses.length)
-            return "AI 使用揭露 · 用途不明";
+            return t("reason.unknown");
         const selected = uses.some(category => settings.filterCategories[category]);
-        return `AI 用途：${uses.map(category => SAFDisclosure.packs[category].label).join("、")}${selected ? "" : " · 未選取"}`;
+        return t("reason.uses", { uses: uses.map(SAF.categoryLabel).join(t("list.separator")), unselected: selected ? "" : t("reason.unselected") });
     }
-    reveal.onclick = () => { revealing = !revealing; render(); };
+    function revealCard(card) {
+        revealed.add(card);
+        hovered.delete(card);
+        render();
+        if (card instanceof HTMLElement)
+            card.focus({ preventScroll: true });
+    }
+    function restoreCard(card) {
+        revealed.delete(card);
+        hovered.delete(card);
+        hoverSuppressed.add(card);
+        render();
+        if (card instanceof HTMLElement)
+            card.focus({ preventScroll: true });
+    }
+    async function allowCard(evidence) {
+        actionState.set(evidence.id, { pending: "allow" });
+        render();
+        try {
+            const latest = await SAF.getSettings();
+            await chrome.storage.local.set({ allow: { ...latest.allow, [evidence.id]: evidence.title } });
+            actionState.delete(evidence.id);
+        }
+        catch {
+            actionState.set(evidence.id, { issue: t("mask.actionFailed") });
+        }
+        if (contextReady())
+            render();
+    }
+    async function ignoreCard(evidence) {
+        actionState.set(evidence.id, { pending: "ignore" });
+        render();
+        try {
+            const result = await send({ type: "SAF_IGNORE_ONE", item: evidence });
+            actionState.set(evidence.id, result?.ok ? { ignored: true } : { issue: result?.issue || t("mask.actionFailed") });
+        }
+        catch {
+            actionState.set(evidence.id, { issue: t("mask.actionFailed") });
+        }
+        if (contextReady())
+            render();
+    }
+    function maskActions(card, evidence) {
+        return { ...actionState.get(evidence.id), reveal: () => revealCard(card),
+            allow: () => { void allowCard(evidence); }, ignore: () => { void ignoreCard(evidence); } };
+    }
     function watchCard(card) {
         if (watched.has(card))
             return;
         watched.add(card);
         const activate = (event) => {
-            if (!card.classList.contains("saf-blocked"))
+            if (!card.classList.contains("saf-blocked") && !hovered.has(card))
+                return;
+            if (event.target?.closest?.(".saf-mask button, .saf-remask"))
                 return;
             if (event instanceof KeyboardEvent && !["Enter", " "].includes(event.key))
                 return;
             event.preventDefault();
             event.stopImmediatePropagation();
-            const evidence = effective.get(card);
-            if (evidence)
-                openReason(evidence);
+            revealCard(card);
         };
         card.addEventListener("click", activate, { capture: true, signal: events.signal });
         card.addEventListener("auxclick", event => {
@@ -305,9 +348,20 @@
             }
         }, { capture: true, signal: events.signal });
         card.addEventListener("keydown", activate, { capture: true, signal: events.signal });
+        card.addEventListener("pointerenter", () => {
+            if (settings.mode === "mask" && settings.hoverReveal && !hoverSuppressed.has(card) && card.classList.contains("saf-blocked")) {
+                hovered.add(card);
+                render();
+            }
+        }, { signal: events.signal });
+        card.addEventListener("pointerleave", () => {
+            hoverSuppressed.delete(card);
+            if (hovered.delete(card))
+                render();
+        }, { signal: events.signal });
     }
     // Stop Steam hover previews for covered cards, including inline hover handlers.
-    for (const type of ["mouseover", "mouseenter", "pointerover", "pointerenter", "focusin"]) {
+    for (const type of ["mouseover", "mouseenter", "pointerover", "focusin"]) {
         document.addEventListener(type, event => {
             if (event.target?.closest?.(".saf-blocked"))
                 event.stopImmediatePropagation();
@@ -353,7 +407,8 @@
                 pending++;
             if (result?.state === "unavailable")
                 failed++;
-            const hide = isCard && !revealing && SAF.shouldHide(evidence, settings.mode, settings.allow, settings.filterCategories);
+            const locallyShown = settings.mode === "mask" && (revealed.has(element) || hovered.has(element));
+            const hide = isCard && !locallyShown && SAF.shouldHide(evidence, settings.mode, settings.allow, settings.filterCategories);
             // Include newly accepted evidence too, so a queued older match can be cancelled.
             if (settings.autoIgnore)
                 ignoreItems.set(evidence.id, evidence);
@@ -363,7 +418,7 @@
                 removed.push(element);
             if (isCard) {
                 watchCard(element);
-                SAF.syncMask(element, hide ? evidence : null, SAF.presentation(settings.mode));
+                SAF.syncMask(element, hide ? evidence : null, SAF.presentation(settings.mode), maskActions(element, evidence));
                 const existing = element.querySelector(".saf-badge");
                 const showBadge = settings.mode === "mark" && match;
                 if (!showBadge)
@@ -372,7 +427,7 @@
                     const badge = existing || document.createElement("span");
                     const uses = SAFDisclosure.classifyUses(evidence.disclosure);
                     const labels = uses.length ? [...uses] : ["unknown"];
-                    const signature = labels.join(",");
+                    const signature = settings.language + labels.join(",");
                     if (badge.dataset.uses !== signature) {
                         const ai = document.createElement("span");
                         ai.className = "saf-chip saf-chip-ai";
@@ -386,8 +441,8 @@
                         }
                         badge.dataset.uses = signature;
                     }
-                    badge.setAttribute("aria-label", `AI：${labels.map(SAF.categoryLabel).join("、")}。查看揭露`);
-                    badge.title = "查看 AI 使用揭露";
+                    badge.setAttribute("aria-label", t("disclosure.badgeAria", { uses: labels.map(SAF.categoryLabel).join(t("list.separator")) }));
+                    badge.title = t("disclosure.view");
                     if (!existing) {
                         badge.className = "saf-badge";
                         badge.tabIndex = 0;
@@ -412,7 +467,7 @@
                 }
                 const checked = element.querySelector(".saf-checked");
                 const hasResult = Boolean(evidence.disclosure) || result?.state === "not-found";
-                const showCheck = settings.mode !== "off" && settings.showChecked && hasResult && !(hide && settings.mode === "hide");
+                const showCheck = settings.mode !== "off" && settings.showChecked && hasResult && !hide && !(locallyShown && match);
                 if (!showCheck)
                     checked?.remove();
                 else if (!checked) {
@@ -420,19 +475,40 @@
                     check.className = "saf-checked";
                     check.innerHTML = '<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 8 2.5 2.5L12 5"/></svg>';
                     check.setAttribute("role", "img");
-                    check.setAttribute("aria-label", "已檢查；不代表沒有使用 AI");
-                    check.title = evidence.disclosure ? "已取得 AI 使用揭露；綠勾表示查詢完成。" : "已檢查商品頁，未找到 AI 揭露；不代表沒有使用 AI。";
                     if (getComputedStyle(element).position === "static")
                         element.classList.add("saf-badge-positioned");
                     element.append(check);
                 }
+                const check = element.querySelector(".saf-checked");
+                if (check) {
+                    check.classList.toggle("saf-checked-matched", match);
+                    check.setAttribute("aria-label", t(match ? "checked.matched" : "checked.checked"));
+                    check.title = t(match ? "checked.matchedTitle" : "checked.unmatchedTitle");
+                }
+                let restore = element.querySelector(".saf-remask");
+                if (!locallyShown || !match)
+                    restore?.remove();
                 else {
-                    checked.title = evidence.disclosure ? "已取得 AI 使用揭露；綠勾表示查詢完成。" : "已檢查商品頁，未找到 AI 揭露；不代表沒有使用 AI。";
+                    if (!restore) {
+                        restore = document.createElement("button");
+                        restore.type = "button";
+                        restore.className = "saf-remask";
+                        const icon = document.createElement("img");
+                        icon.alt = "";
+                        icon.src = chrome.runtime.getURL("icons/eye.svg");
+                        restore.append(icon);
+                        restore.onclick = event => { event.preventDefault(); event.stopPropagation(); restoreCard(element); };
+                        element.append(restore);
+                    }
+                    restore.title = t("mask.restore");
+                    restore.setAttribute("aria-label", t("mask.restore"));
+                    if (getComputedStyle(element).position === "static")
+                        element.classList.add("saf-badge-positioned");
                 }
                 // Include any newly inserted badge in the mask's accessibility suppression.
                 if (hide && settings.mode === "mask")
-                    SAF.syncMask(element, evidence);
-                if (!showBadge && !showCheck)
+                    SAF.syncMask(element, evidence, "mask", maskActions(element, evidence));
+                if (!showBadge && !showCheck && !(locallyShown && match))
                     element.classList.remove("saf-badge-positioned");
             }
         }
@@ -453,28 +529,22 @@
         removalLayout.sync(removed);
         const main = entries.get(document.documentElement);
         const mainMatched = Boolean(main && SAF.matchesUses(main, settings.allow, settings.filterCategories));
-        status = { kind, total: entries.size, hidden, matched, unknown, pending, checked, failed, mainMatched, revealing, presentation: SAF.presentation(settings.mode) };
-        bar.hidden = settings.mode === "off" || !entries.size;
-        host.style.display = bar.hidden ? "none" : "";
+        status = { kind, total: entries.size, hidden, matched, unknown, pending, checked, failed, mainMatched, presentation: SAF.presentation(settings.mode) };
+        const showMatches = settings.mode === "hide" && candidates.size > 0;
+        bar.hidden = settings.mode === "off" || (!mainMatched && !showMatches);
+        host.style.display = settings.mode === "off" ? "none" : "";
         if (settings.mode === "off" && dialog.open)
             dialog.close();
-        const action = settings.mode === "hide" ? "隱藏" : "遮蔽";
-        stat.textContent = main
-            ? `${mainMatched ? "這款遊戲符合所選用途" : "這款遊戲未命中所選用途"}${hidden ? `；其他遊戲已${action} ${hidden} 筆` : ""}`
-            : revealing ? `暫時顯示全部 ${entries.size} 筆`
-                : settings.mode === "mark" ? `已標記 ${matched} / ${entries.size} 筆` : `已${action} ${hidden} / ${entries.size} 筆`;
-        const issues = Array.from(entries.values()).filter(e => e.parseIssue).length;
-        note.textContent = !main || entries.size > 1
-            ? `背景確認 ${pending} 筆；${checked} 筆未找到披露；${unknown} 筆尚未確認。${failed ? ` ${failed} 筆查詢暫不可用。` : ""}未找到披露不代表沒有使用 AI。${issues ? ` ${issues} 筆標籤格式無法讀取。` : ""}`
-            : "詳情頁保留供你查看。未取得訊號不代表沒有使用 AI。";
-        reveal.hidden = hidden === 0 && !revealing;
-        reveal.textContent = revealing ? "恢復過濾" : "暫時顯示";
-        shadow.querySelector("#matches").hidden = candidates.size === 0;
+        shadow.querySelector("#close").textContent = t("action.close");
+        shadow.querySelector("#matches summary").textContent = t("matches.title");
+        stat.hidden = !mainMatched;
+        stat.textContent = mainMatched ? t("status.mainMatched") : "";
+        shadow.querySelector("#matches").hidden = !showMatches && !mainMatched;
         // Shadow-root updates do not feed the page observer.
         list.replaceChildren();
         for (const e of candidates.values()) {
             const li = document.createElement("li"), button = document.createElement("button");
-            button.textContent = `${e.title} · ${displayReason(e)}${Object.hasOwn(settings.allow, e.id) ? " · 永遠顯示" : ""}`;
+            button.textContent = `${e.title} · ${displayReason(e)}${Object.hasOwn(settings.allow, e.id) ? t("allow.suffix") : ""}`;
             button.onclick = () => openReason(e);
             li.append(button);
             list.append(li);
@@ -503,6 +573,10 @@
                     element.querySelector(".saf-badge")?.remove();
                     entries.delete(element);
                     element.querySelector(".saf-checked")?.remove();
+                    element.querySelector(".saf-remask")?.remove();
+                    revealed.delete(element);
+                    hovered.delete(element);
+                    hoverSuppressed.delete(element);
                     visibility.unobserve(element);
                     nearby.delete(element);
                 }
@@ -519,6 +593,11 @@
                     continue; // bundles and packages aren't a single game
                 }
                 const title = SAF.cardTitle(card, id);
+                if (entries.get(card)?.id !== id) {
+                    revealed.delete(card);
+                    hovered.delete(card);
+                    hoverSuppressed.delete(card);
+                }
                 entries.set(card, SAF.readEvidence(card, id, title));
                 visibility.observe(card);
             }
@@ -540,11 +619,11 @@
         let relevant = false;
         for (const record of records) {
             const el = record.target instanceof Element ? record.target : record.target.parentElement;
-            if (!el || el.closest("#saf-root, .saf-badge, .saf-checked, .saf-mask"))
+            if (!el || el.closest("#saf-root, .saf-badge, .saf-checked, .saf-mask, .saf-remask"))
                 continue;
             if (record.type === "childList") {
                 const nodes = [...record.addedNodes, ...record.removedNodes];
-                if (nodes.length && nodes.every(n => n instanceof Element && (n.id === "saf-root" || n.matches(".saf-badge, .saf-checked, .saf-mask"))))
+                if (nodes.length && nodes.every(n => n instanceof Element && (n.id === "saf-root" || n.matches(".saf-badge, .saf-checked, .saf-mask, .saf-remask"))))
                     continue;
             }
             relevant = true;
@@ -562,13 +641,20 @@
         return;
     function applySettings(next) {
         const wasOff = settings.mode === "off";
-        if (settings.mode !== next.mode || JSON.stringify(settings.filterCategories) !== JSON.stringify(next.filterCategories))
-            revealing = false;
+        if (settings.mode !== next.mode || JSON.stringify(settings.filterCategories) !== JSON.stringify(next.filterCategories)) {
+            revealed.clear();
+            hovered.clear();
+            hoverSuppressed.clear();
+        }
+        if (!next.hoverReveal)
+            hovered.clear();
         if (next.mode === "off" && !wasOff) {
             queryGeneration++;
             requesting.clear();
         }
         settings = next;
+        SAFI18n.setLanguage(settings.language);
+        host.lang = settings.language;
         ignoreSignature = "";
         if (wasOff && next.mode !== "off") {
             for (const element of entries.keys())
@@ -600,7 +686,7 @@
         chrome.runtime.onMessage.addListener((message, _sender, respond) => {
             if (!contextReady())
                 return;
-            if (!message || !["SAF_STATUS", "SAF_REFRESH", "SAF_REVEAL"].includes(message.type))
+            if (!message || !["SAF_STATUS", "SAF_REFRESH"].includes(message.type))
                 return;
             if (!ready) {
                 respond(null);
@@ -617,10 +703,6 @@
                     respond(null); });
                 return true;
             }
-            if (message.type === "SAF_REVEAL") {
-                revealing = !revealing;
-                render();
-            }
             if (!stopped)
                 respond(status);
         });
@@ -635,6 +717,8 @@
             if (!contextReady())
                 return;
             settings = data;
+            SAFI18n.setLanguage(settings.language);
+            host.lang = settings.language;
             readCache(cache.disclosureCache);
             ready = true;
             scan();

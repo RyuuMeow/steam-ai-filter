@@ -3,8 +3,9 @@ const assert = require('node:assert/strict');
 const vm = require('node:vm');
 const fs = require('node:fs');
 const ctx = vm.createContext({});
-for (const file of ['disclosure-keywords', 'disclosure', 'core']) vm.runInContext(fs.readFileSync(`dist/${file}.js`, 'utf8'), ctx);
+for (const file of ['i18n','disclosure-keywords', 'disclosure', 'core']) vm.runInContext(fs.readFileSync(`dist/${file}.js`, 'utf8'), ctx);
 const classify = text => Array.from(ctx.SAFDisclosure.classifyUses(text));
+ctx.SAFI18n.setLanguage('zh-Hant');
 const S = ctx.SAF;
 const evidence = disclosure => ({id:'42',title:'Test',disclosure,tagMatch:true,tagAvailable:true,parseIssue:false});
 

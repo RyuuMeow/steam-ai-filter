@@ -3,6 +3,7 @@
 import fs from 'node:fs/promises';
 import vm from 'node:vm';
 const scope=vm.createContext({setTimeout,clearTimeout,AbortController,URL});
+vm.runInContext(await fs.readFile('dist/i18n.js','utf8'),scope);
 vm.runInContext(await fs.readFile('dist/lookup.js','utf8'),scope);
 const ids=process.argv.slice(2);
 if(!ids.length||ids.some(id=>!scope.SAFLookup.validId(id)))throw Error('Pass one or more Steam App IDs');

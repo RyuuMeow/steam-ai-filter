@@ -40,7 +40,7 @@ var SAFLookup;
     // Parse only the server-rendered descriptor section. No remote HTML is ever executed.
     function parse(html, id, now) {
         if (!SAFLookup.validId(id) || html.length > 4000000)
-            return unavailable(now, "頁面格式無法確認");
+            return unavailable(now, SAFI18n.t("lookup.pageFormat"));
         const clean = html.replace(/<!--[\s\S]*?-->/g, "").replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, "");
         const metas = clean.match(/<meta\b[^>]*>/gi) || [];
         const identity = metas.some(meta => /\bproperty\s*=\s*["']og:url["']/i.test(meta) &&
@@ -49,7 +49,7 @@ var SAFLookup;
             /\bid\s*=\s*["']game_area_description["']/i.test(clean) &&
             /<\/body\s*>\s*<\/html\s*>/i.test(clean);
         if (!complete)
-            return unavailable(now, "商品頁不完整或需要驗證");
+            return unavailable(now, SAFI18n.t("lookup.pageIncomplete"));
         const sections = clean.matchAll(/<div\b[^>]*\bid\s*=\s*["']game_area_content_descriptors["'][^>]*>([\s\S]*?)<\/div\s*>/gi);
         for (const section of sections) {
             const heading = section[1].match(/<h2\b[^>]*>([\s\S]*?)<\/h2\s*>/i);
@@ -59,12 +59,12 @@ var SAFLookup;
             // A heading with a changed/missing body is unknown, never a negative result.
             const disclosure = quote ? plain(quote[1]).slice(0, 2000) : "";
             if (!disclosure)
-                return unavailable(now, "披露區塊格式無法讀取");
+                return unavailable(now, SAFI18n.t("lookup.disclosureUnreadable"));
             return { state: "disclosed", disclosure, checkedAt: now, expiresAt: now + 7 * DAY };
         }
         // A familiar heading outside the expected structure means the adapter needs updating.
         if (/AI[- ]Generated Content Disclosure/i.test(clean))
-            return unavailable(now, "披露區塊格式已變更");
+            return unavailable(now, SAFI18n.t("lookup.disclosureChanged"));
         return { state: "not-found", disclosure: null, checkedAt: now, expiresAt: now + DAY };
     }
     SAFLookup.parse = parse;
@@ -98,24 +98,24 @@ var SAFLookup;
         }
         async get(id) {
             if (!SAFLookup.validId(id))
-                return unavailable(this.now(), "無效遊戲 ID");
+                return unavailable(this.now(), SAFI18n.t("lookup.invalidId"));
             try {
                 await this.initialized;
             }
             catch {
-                return unavailable(this.now(), "快取讀取失敗");
+                return unavailable(this.now(), SAFI18n.t("lookup.cacheReadFailed"));
             }
             if (!this.enabled)
-                return unavailable(this.now(), "過濾已關閉", 0);
+                return unavailable(this.now(), SAFI18n.t("lookup.disabled"), 0);
             if (fresh(this.items[id], this.now(), this.options.cacheDays ?? 0))
                 return this.withPolicy(this.items[id]);
             if (this.cooldownUntil > this.now())
-                return unavailable(this.now(), "Steam 暫時限制查詢", this.cooldownUntil - this.now());
+                return unavailable(this.now(), SAFI18n.t("lookup.rateLimited"), this.cooldownUntil - this.now());
             const existing = this.pending.get(id);
             if (existing)
                 return existing;
             if (this.queue.length >= 32)
-                return unavailable(this.now(), "查詢排隊中", 30000);
+                return unavailable(this.now(), SAFI18n.t("lookup.queued"), 30000);
             const promise = new Promise(resolve => this.queue.push({ id, resolve, generation: this.generation }));
             this.pending.set(id, promise);
             this.pump();
@@ -145,7 +145,7 @@ var SAFLookup;
                 clearTimeout(this.timer);
             this.timer = undefined;
             for (const job of this.queue.splice(0))
-                job.resolve(unavailable(this.now(), "查詢已取消", 0));
+                job.resolve(unavailable(this.now(), SAFI18n.t("lookup.cancelled"), 0));
             this.pending.clear();
             for (const controller of this.active)
                 controller.abort();
@@ -173,7 +173,7 @@ var SAFLookup;
             if (this.cooldownUntil > this.now()) {
                 for (const job of this.queue.splice(0)) {
                     this.pending.delete(job.id);
-                    job.resolve(unavailable(this.now(), "Steam 暫時限制查詢", this.cooldownUntil - this.now()));
+                    job.resolve(unavailable(this.now(), SAFI18n.t("lookup.rateLimited"), this.cooldownUntil - this.now()));
                 }
                 return;
             }
@@ -200,17 +200,17 @@ var SAFLookup;
                     const raw = response.headers.get("Retry-After");
                     const seconds = raw && /^\d+$/.test(raw) ? Number(raw) * 1000 : raw ? Date.parse(raw) - this.now() : 0;
                     this.cooldownUntil = this.now() + Math.min(3600000, Math.max(60000, Number.isFinite(seconds) ? seconds : 0));
-                    result = unavailable(this.now(), "Steam 暫時限制查詢", this.cooldownUntil - this.now());
+                    result = unavailable(this.now(), SAFI18n.t("lookup.rateLimited"), this.cooldownUntil - this.now());
                 }
                 else if (!response.ok || !response.headers.get("content-type")?.includes("text/html")) {
-                    result = unavailable(this.now(), `商品頁讀取失敗（${response.status}）`);
+                    result = unavailable(this.now(), SAFI18n.t("lookup.httpFailed", { status: response.status }));
                 }
                 else {
                     result = parse(await response.text(), job.id, this.now());
                 }
             }
             catch {
-                result = unavailable(this.now(), "頁面需要驗證、連線逾時或暫時無法存取");
+                result = unavailable(this.now(), SAFI18n.t("lookup.accessFailed"));
             }
             finally {
                 clearTimeout(timeout);
@@ -222,13 +222,13 @@ var SAFLookup;
                     await this.persist();
                 }
                 catch {
-                    result = { ...result, issue: "結果未能寫入快取" };
+                    result = { ...result, issue: SAFI18n.t("lookup.cacheWriteFailed") };
                 }
             }
             if (job.generation === this.generation && this.enabled)
                 this.pending.delete(job.id);
             else
-                result = unavailable(this.now(), "查詢已取消", 0);
+                result = unavailable(this.now(), SAFI18n.t("lookup.cancelled"), 0);
             this.active.delete(controller);
             job.resolve(result);
             this.pump();

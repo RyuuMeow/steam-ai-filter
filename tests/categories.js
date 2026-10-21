@@ -25,7 +25,7 @@ if (new URLSearchParams(location.search).has('test')) (async () => {
     assert(lookupCount===0,'cached classifications need no network lookup');
     toggle('code').click();await until(()=>count()===5);
     assert(testBridge.data.filterCategories.code&&testBridge.data.mode==='hide'&&testBridge.data.settingsVersion===2,'selecting code saves and updates summary');
-    assert(popup().querySelector('#status').textContent.includes('已隱藏 5 / 7'),'popup count reflects selected categories');
+    assert(!popup().querySelector('#status,#reveal'),'popup omits redundant counts and reveal action');
     toggle('code').click();await until(()=>count()===2);
     assert(!hidden('code')&&lookupCount===0,'deselecting code restores both duplicate cards without refetching');
     for(const [category,text] of [['music','AI background music.'],['voice','AI voice acting.'],['text','AI generated dialogue.'],['translation','AI translated dialogue.']]){
@@ -46,7 +46,7 @@ if (new URLSearchParams(location.search).has('test')) (async () => {
     await set({filterCategories:{}});assert(count()===0,'all uses off restores all cards');
     await set({filterCategories:artOnly,mode:'mask'});
     assert(document.querySelectorAll('.saf-mask').length===2&&!document.querySelector('.saf-badge,.saf-removed'),'mask uses the same decision without AI badges');
-    assert([...document.querySelectorAll('.saf-blocked')].every(card=>card.querySelector('.saf-checked')&&getComputedStyle(card.querySelector('.saf-checked')).opacity==='1'),'completed masks retain their independent check icon');
+    assert(!document.querySelector('.saf-blocked .saf-checked'),'masked cards omit redundant check icons');
     await set({mode:'mark'});
     assert(count()===0&&!popup().querySelector('#filter-options').hidden,'mark mode keeps the use controls and all cards');
     assert([...card('mixed').querySelectorAll('.saf-chip')].map(chip=>chip.textContent).join('|')==='AI|美術|程式碼','mark mode shows independent AI and all disclosed uses');

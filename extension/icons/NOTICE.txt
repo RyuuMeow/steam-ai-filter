@@ -1,0 +1,8 @@
+settings.svg: cog from small-n-flat by Paomedia, CC0 1.0 Universal.
+Source: https://github.com/paomedia/small-n-flat/blob/master/svg/cog.svg
+License: https://github.com/paomedia/small-n-flat/blob/master/LICENSE
+The downloaded SVG is unmodified. Full license: settings.LICENSE.txt.
+
+eye.svg: Eye from SVG Repo, CC0 1.0 Universal; original path data retained.
+Source: https://www.svgrepo.com/svg/26260/eye
+SVG source mirror: https://www.svgviewer.dev/s/301471/eye

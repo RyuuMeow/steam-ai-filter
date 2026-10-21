@@ -1,20 +1,22 @@
 (() => {
   const $ = <T extends HTMLElement>(selector: string) => document.querySelector<T>(selector)!;
+  const t = SAFI18n.t;
   const input = $<HTMLInputElement>("#strength"), control = $(".filter-control");
   const autoIgnore = $<HTMLInputElement>("#auto-ignore"), showChecked = $<HTMLInputElement>("#show-checked");
-  const error = $("#error"), status = $("#status"), pageStatus = $("#page-status"), coverage = $("#coverage");
-  const reveal = $<HTMLButtonElement>("#reveal"), ignoreStatus = $("#ignore-status");
+  const error = $("#error"), connection = $("#connection"), ignoreStatus = $("#ignore-status");
+  const language = $<HTMLSelectElement>("#language");
+  const hoverReveal = $<HTMLInputElement>("#hover-reveal");
   const categoryToggles = new Map<SAF.FilterCategory, HTMLInputElement>();
   for (const category of SAF.filterCategories) {
     const label = document.createElement("label"), text = document.createElement("span"), toggle = document.createElement("input");
     label.className = "toggle-row"; label.htmlFor = `filter-${category}`;
-    text.textContent = SAF.categoryLabel(category);
+    text.dataset.i18n = `filter.${category}`;
     toggle.id = `filter-${category}`; toggle.type = "checkbox"; toggle.setAttribute("role", "switch"); toggle.disabled = true;
-    if (category === "unknown") label.title = "已取得 AI 揭露，但無法判定具體用途。";
+    if (category === "unknown") label.dataset.i18nTitle = "filter.unknownHelp";
     label.append(text, toggle); $("#category-list").append(label); categoryToggles.set(category, toggle);
   }
   const fields = {cacheDays: $<HTMLSelectElement>("#cache-days"), requestGap: $<HTMLSelectElement>("#request-gap"), concurrency: $<HTMLSelectElement>("#concurrency")};
-  const titles: Record<string, string> = {home: "AI 過濾", settings: "設定", checking: "檢查與快取", network: "網路設定", display: "顯示設定", automation: "自動化與例外"};
+  const titles: Record<string, SAFI18n.MessageKey> = {home: "category.home", settings: "category.settings", checking: "category.checking", network: "category.network", display: "category.display", automation: "category.automation", language: "category.language"};
   const routes: {view: string; scroll: number; trigger?: HTMLElement}[] = [{view: "home", scroll: 0}];
   function navigate(view?: string, trigger?: HTMLElement) {
     const current = routes[routes.length - 1];
@@ -24,7 +26,7 @@
     const next = routes[routes.length - 1];
     for (const section of document.querySelectorAll<HTMLElement>("main > section[data-view]")) section.hidden = section.dataset.view !== next.view;
     $("#back").hidden = next.view === "home"; $("#settings").hidden = next.view !== "home";
-    $("#page-title").textContent = titles[next.view];
+    $("#page-title").textContent = t(titles[next.view]);
     document.documentElement.dataset.view = next.view;
     (leaving?.trigger || $("#page-title")).focus({preventScroll: true});
     window.scrollTo(0, next.scroll);
@@ -34,41 +36,66 @@
   let settings = SAF.normalizeSettings(), ignoreState: Partial<SAFIgnore.State> = {};
   let tabId: number | undefined, isStoreTab = false, settingsRevision = 0;
   let writeQueue = Promise.resolve();
+  let modeDraft: SAF.Mode | null = null, modeRevision = 0;
+  function translate() {
+    SAFI18n.setLanguage(settings.language); document.documentElement.lang = settings.language;
+    for (const [attribute, target] of [["data-i18n", ""], ["data-i18n-aria", "aria-label"], ["data-i18n-title", "title"]]) {
+      for (const element of document.querySelectorAll<HTMLElement>(`[${attribute}]`)) {
+        const value = t(element.getAttribute(attribute) as SAFI18n.MessageKey);
+        if (target) element.setAttribute(target, value); else element.textContent = value;
+      }
+    }
+    $("#page-title").textContent = t(titles[routes[routes.length - 1].view]);
+    for (const option of fields.cacheDays.options) if (option.value !== "0") option.textContent = t(option.value === "1" ? "option.day" : "option.days", {count: option.value});
+    for (const option of fields.requestGap.options) {
+      const value = t(option.value === "1000" ? "option.second" : "option.seconds", {count: Number(option.value) / 1000});
+      option.textContent = option.value === "700" ? t("option.default", {value}) : value;
+    }
+    fields.concurrency.options[1].textContent = t("option.default", {value: 2});
+    language.value = settings.language;
+    if (!error.hidden) error.textContent = SAFI18n.localizeStored(error.textContent || "");
+    if (!connection.hidden) connection.textContent = t("error.refresh");
+    if (!$("#cache-result").hidden) $("#cache-result").textContent = t($("#cache-result").dataset.error === "true" ? "cache.clearFailed" : "cache.cleared");
+  }
   function report(e: unknown) {
     console.error("Steam AI Filter:", e);
-    error.hidden = false; error.textContent = "設定未能儲存，請再試一次。";
+    error.hidden = false; error.textContent = t("error.save");
+  }
+  function paintPosition(position: number) {
+    const index = Math.round(position);
+    control.dataset.level = String(index); control.style.setProperty("--fraction", String(position / 3));
+    input.value = String(position); input.setAttribute("aria-valuetext", t(`mode.${SAF.modes[index].id}`));
   }
   function paintMode(mode: SAF.Mode) {
-    const index = SAF.modes.findIndex(item => item.id === mode);
-    control.dataset.level = String(index); control.style.setProperty("--fraction", String(index / 3));
-    input.value = String(index); input.setAttribute("aria-valuetext", SAF.modes[index].name);
-    $("#rule-text").textContent = SAF.modes[index].description;
+    paintPosition(SAF.modes.findIndex(item => item.id === mode));
   }
   function paint() {
-    paintMode(settings.mode);
+    translate();
+    if (!control.classList.contains("dragging")) paintMode(modeDraft || settings.mode);
     for (const [category, toggle] of categoryToggles) toggle.checked = settings.filterCategories[category];
-    autoIgnore.checked = settings.autoIgnore; showChecked.checked = settings.showChecked;
+    autoIgnore.checked = settings.autoIgnore; showChecked.checked = settings.showChecked; hoverReveal.checked = settings.hoverReveal;
     for (const [key, field] of Object.entries(fields)) field.value = String(settings[key as keyof typeof fields]);
-    $("#cache-help").textContent = settings.cacheDays === 0
-      ? "預設：有揭露 7 天，未找到揭露 1 天。過期後，下次遇到遊戲時重新檢查。"
-      : `成功查詢的結果保留 ${settings.cacheDays} 天。過期後，下次遇到遊戲時重新檢查；失敗會較早重試。`;
     paintIgnore();
   }
   function paintIgnore() {
     ignoreStatus.hidden = !settings.autoIgnore;
-    if (ignoreState.paused) ignoreStatus.textContent = ignoreState.paused;
-    else if (!SAF.filters(settings.mode)) ignoreStatus.textContent = "自動不感興趣已隨過濾暫停。";
-    else if ((ignoreState.cooldownUntil || 0) > Date.now()) ignoreStatus.textContent = `Steam 限流，${new Date(ignoreState.cooldownUntil!).toLocaleTimeString([], {hour: "2-digit", minute: "2-digit"})} 後重試。`;
-    else ignoreStatus.textContent = `待忽略 ${ignoreState.queue?.length || 0} 款 · 已確認忽略 ${Object.keys(ignoreState.done || {}).length} 款${ignoreState.last ? `\n${ignoreState.last}` : ""}`;
+    if (ignoreState.paused) ignoreStatus.textContent = SAFI18n.localizeStored(ignoreState.paused);
+    else if (!SAF.filters(settings.mode)) ignoreStatus.textContent = t("automation.disabledMode");
+    else if ((ignoreState.cooldownUntil || 0) > Date.now()) ignoreStatus.textContent = t("automation.cooldown", {time: new Date(ignoreState.cooldownUntil!).toLocaleTimeString(settings.language, {hour: "2-digit", minute: "2-digit"})});
+    else {
+      const pending = ignoreState.queue?.length || 0, done = Object.keys(ignoreState.done || {}).length;
+      ignoreStatus.hidden = pending === 0 && done === 0 && !ignoreState.last;
+      ignoreStatus.textContent = t("automation.queue", {pending, done, last: ignoreState.last ? `\n${SAFI18n.localizeStored(ignoreState.last)}` : ""});
+    }
   }
   function renderAllow() {
     const entries = Object.entries(settings.allow);
-    $("#exceptions").hidden = entries.length === 0; $("#allow-count").textContent = `(${entries.length})`;
+    $("#exceptions").hidden = entries.length === 0;
     const list = $("#allow-list"); list.replaceChildren();
     for (const [id, title] of entries) {
       const li = document.createElement("li"), text = document.createElement("span"), button = document.createElement("button");
-      text.textContent = title; button.textContent = "移除"; button.className = "text-button";
-      button.setAttribute("aria-label", `移除 ${title} 的永遠顯示設定`);
+      text.textContent = title; button.textContent = t("action.remove"); button.className = "text-button";
+      button.setAttribute("aria-label", t("action.removeAllow", {title}));
       button.onclick = () => {
         button.disabled = true;
         save(latest => { const allow = {...latest.allow}; delete allow[id]; return {allow}; });
@@ -81,18 +108,10 @@
     try {
       const data: SAF.Status = await chrome.tabs.sendMessage(tabId, {type: "SAF_STATUS"});
       if (!data || !["app", "home", "search", "store"].includes(data.kind)) throw new Error("Unsupported page");
-      pageStatus.hidden = settings.mode === "off";
-      const action = data.presentation === "remove" ? "隱藏" : "遮蔽";
-      status.textContent = data.total === 0 ? "本頁未找到可識別的遊戲卡片。" : data.kind === "app"
-        ? `${data.mainMatched ? "這款遊戲符合所選用途" : "這款遊戲未命中所選用途"}${data.hidden ? `；其他遊戲已${action} ${data.hidden} 筆` : ""}`
-        : data.revealing ? `暫時顯示全部 ${data.total} 筆`
-        : settings.mode === "mark" ? `已標記 ${data.matched} / ${data.total} 筆` : `已${action} ${data.hidden} / ${data.total} 筆`;
-      reveal.hidden = data.hidden === 0 && !data.revealing; reveal.textContent = data.revealing ? "恢復過濾" : "暫時顯示";
-      coverage.hidden = settings.mode === "off";
-      coverage.textContent = `檢查中 ${data.pending || 0} 筆；未找到揭露 ${data.checked || 0} 筆；尚未確認 ${data.unknown} 筆。`;
+      connection.hidden = true;
     } catch {
-      pageStatus.hidden = !isStoreTab || settings.mode === "off";
-      status.textContent = "重新整理 Steam 頁面以套用過濾。"; reveal.hidden = true; coverage.hidden = true;
+      connection.hidden = !isStoreTab || settings.mode === "off";
+      connection.textContent = t("error.refresh");
     }
   }
   async function refreshPage() {
@@ -116,43 +135,56 @@
       paint(); renderAllow(); report(e);
     });
   }
-  const selectedMode = () => SAF.modes[Number(input.value)]?.id || "mask";
-  input.addEventListener("input", () => paintMode(selectedMode()));
-  input.addEventListener("change", () => save({mode: selectedMode()}));
+  function commitMode() {
+    const mode = SAF.modes[Math.round(Number(input.value))].id, revision = ++modeRevision;
+    modeDraft = mode; control.classList.remove("dragging"); paintMode(mode); save({mode});
+    void writeQueue.finally(() => { if (revision === modeRevision) { modeDraft = null; paint(); } });
+  }
+  input.addEventListener("pointerdown", () => control.classList.add("dragging"));
+  input.addEventListener("input", () => paintPosition(Number(input.value)));
+  input.addEventListener("change", commitMode);
+  input.addEventListener("pointercancel", () => { control.classList.remove("dragging"); paint(); });
+  // Native range emits change after pointerup. Do not overwrite its draft value here.
+  window.addEventListener("pointerup", () => control.classList.remove("dragging"));
+  input.addEventListener("keydown", event => {
+    const index = Math.round(Number(input.value));
+    const next = event.key === "Home" ? 0 : event.key === "End" ? 3
+      : ["ArrowRight", "ArrowUp"].includes(event.key) ? Math.min(3, index + 1)
+      : ["ArrowLeft", "ArrowDown"].includes(event.key) ? Math.max(0, index - 1) : null;
+    if (next === null) return;
+    event.preventDefault(); paintPosition(next); commitMode();
+  });
+  language.addEventListener("change", () => save({language: SAFI18n.normalizeLanguage(language.value)}));
   for (const [category, toggle] of categoryToggles) toggle.addEventListener("change", () => {
     const checked = toggle.checked;
     save(latest => ({filterCategories: {...latest.filterCategories, [category]: checked}}));
   });
   for (const [key, field] of Object.entries(fields)) field.addEventListener("change", () => save({[key]: Number(field.value)}));
   showChecked.addEventListener("change", () => save({showChecked: showChecked.checked}));
+  hoverReveal.addEventListener("change", () => save({hoverReveal: hoverReveal.checked}));
   autoIgnore.addEventListener("change", () => {
     const enabled = autoIgnore.checked; autoIgnore.disabled = true;
     writeQueue = writeQueue.then(async () => {
       if (enabled) {
         const result = await chrome.runtime.sendMessage({type: "SAF_IGNORE_ENABLE"});
-        if (!result?.ok) throw new Error(result?.issue || "無法開啟自動不感興趣。");
+        if (!result?.ok) throw new Error(result?.issue || t("automation.enableFailed"));
       } else await chrome.storage.local.set({autoIgnore: false});
       settings = await SAF.getSettings();
       await chrome.storage.local.set({ignoreError: ""});
       error.hidden = true; paint(); await refreshPage();
     }).catch(async e => {
       try { settings = await SAF.getSettings(); } catch { /* retain committed values */ }
-      paint(); error.hidden = false; error.textContent = e instanceof Error ? e.message : "設定未能儲存，請再試一次。";
+      paint(); error.hidden = false; error.textContent = e instanceof Error ? SAFI18n.localizeStored(e.message) : t("error.save");
     }).finally(() => { autoIgnore.disabled = false; });
   });
-  reveal.onclick = async () => {
-    if (tabId === undefined) return;
-    try { await chrome.tabs.sendMessage(tabId, {type: "SAF_REVEAL"}); await refresh(); }
-    catch { pageStatus.hidden = false; status.textContent = "頁面連線已中斷，請重新整理。"; }
-  };
   $<HTMLButtonElement>("#clear-cache").onclick = async event => {
     const button = event.currentTarget as HTMLButtonElement, resultText = $("#cache-result");
     button.disabled = true; resultText.hidden = true;
     try {
       const result = await chrome.runtime.sendMessage({type: "SAF_CLEAR_CACHE"});
       if (!result?.ok) throw new Error("Cache clear failed");
-      resultText.textContent = "查詢快取已清除。"; resultText.dataset.error = "false"; await refresh();
-    } catch { resultText.textContent = "清除失敗，請再試一次。"; resultText.dataset.error = "true"; }
+      resultText.textContent = t("cache.cleared"); resultText.dataset.error = "false"; await refresh();
+    } catch { resultText.textContent = t("cache.clearFailed"); resultText.dataset.error = "true"; }
     finally { button.disabled = false; resultText.hidden = false; }
   };
   chrome.runtime.onMessage.addListener((message, sender) => {
@@ -164,18 +196,18 @@
       const revision = ++settingsRevision;
       void SAF.getSettings().then(next => {
         if (revision !== settingsRevision) return;
-        settings = next; paint(); if (changes.allow) renderAllow(); void refresh();
+        settings = next; paint(); if (changes.allow || changes.language) renderAllow(); void refresh();
       }).catch(report);
     }
     if (changes.ignoreState) { ignoreState = changes.ignoreState.newValue || {}; paintIgnore(); }
-    if (typeof changes.ignoreError?.newValue === "string" && changes.ignoreError.newValue) { error.hidden = false; error.textContent = changes.ignoreError.newValue; }
+    if (typeof changes.ignoreError?.newValue === "string" && changes.ignoreError.newValue) { error.hidden = false; error.textContent = SAFI18n.localizeStored(changes.ignoreError.newValue); }
   });
   void (async () => {
     try {
       settings = await SAF.getSettings();
       const stored = await chrome.storage.local.get(["ignoreState", "ignoreError"]);
       ignoreState = stored.ignoreState || {}; paint(); renderAllow();
-      if (typeof stored.ignoreError === "string" && stored.ignoreError) { error.hidden = false; error.textContent = stored.ignoreError; }
+      if (typeof stored.ignoreError === "string" && stored.ignoreError) { error.hidden = false; error.textContent = SAFI18n.localizeStored(stored.ignoreError); }
       const [tab] = await chrome.tabs.query({active: true, currentWindow: true});
       isStoreTab = Boolean(tab?.url?.startsWith("https://store.steampowered.com/")); tabId = tab?.id;
       await refresh();

@@ -3,6 +3,8 @@ const assert = require('node:assert/strict');
 const vm = require('node:vm');
 const fs = require('node:fs');
 const context = vm.createContext({setTimeout, clearTimeout, AbortController, URL});
+vm.runInContext(fs.readFileSync('dist/i18n.js', 'utf8'), context);
+context.SAFI18n.setLanguage('zh-Hant');
 vm.runInContext(fs.readFileSync('dist/lookup.js', 'utf8'), context);
 const S = context.SAFLookup;
 const html = (id, disclosure = null) => `<html><head><meta property="og:url" content="https://store.steampowered.com/app/${id}/Game/"></head><body>

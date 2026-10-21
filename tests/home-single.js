@@ -20,9 +20,9 @@
     assert(!document.querySelector('#recommendations').classList.contains('saf-removed-wrapper'),'shared recommendation list remains visible');
     assert(height(document.querySelector('#extra-wrapper'))===0&&height(document.querySelector('#separate-content'))>0,'outer wrapper with unrelated content is preserved');
     const shadow=document.querySelector('#saf-root').shadowRoot;
-    shadow.querySelector('#reveal').click();
+    await testSettings({mode:'mark'});
     assert(height(outer)===originalHeight&&!card.classList.contains('saf-removed'),'temporarily showing restores the whole recommendation');
-    shadow.querySelector('#reveal').click();
+    await testSettings({mode:'hide'});
     assert(height(outer)===0,'resuming filtering collapses the outer wrapper again');
     await testSettings({allow:{'3850550':'待過濾推薦'}});
     assert(height(outer)===originalHeight,'always-show exception restores header and outer spacing');

@@ -11,7 +11,7 @@
     assert([...gallery.querySelectorAll('img')].every(img=>img.closest('.saf-blocked')===gallery),'one mask covers recommendation cover and all four screenshots');
     assert(!document.querySelector('#recommendation').classList.contains('saf-blocked'),'recommendation heading with another app stays outside the mask');
     assert(gallery.querySelectorAll('.saf-mask').length===1,'single-game group is not covered by nested duplicate masks');
-    assert(react.classList.contains('saf-blocked')&&react.querySelector('.saf-mask-label').textContent==='已遮蔽','React item-key wrapper uses detail disclosure cache');
+    assert(react.classList.contains('saf-blocked')&&react.querySelector('.saf-mask-label').textContent==='AI生成內容','React item-key wrapper uses detail disclosure cache');
     assert(document.querySelector('#wishlist').classList.contains('saf-blocked'),'data-app-id cards are covered');
     assert(document.querySelector('#background-card').classList.contains('saf-blocked'),'CSS-background app card is covered');
     assert(!shelf.classList.contains('saf-blocked')&&!document.querySelector('#ordinary').classList.contains('saf-blocked'),'mixed-game shelves and unmatched neighbours remain visible');
@@ -21,10 +21,10 @@
       assert(!document.querySelector('#main-product').classList.contains('saf-blocked'),'current product remains visible while other-game cards are filtered');
       assert((await status()).hidden>=4,'product detail page also filters its recommendations');
     }
+    assert(react.tabIndex===0,'masked non-link container is keyboard reachable');
     react.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true,cancelable:true}));
     const shadow=document.querySelector('#saf-root').shadowRoot;
-    assert(react.tabIndex===0&&shadow.querySelector('dialog').open,'non-link container mask supports keyboard activation');
-    shadow.querySelector('#close').click();
+    assert(!react.classList.contains('saf-blocked')&&react.querySelector('.saf-remask')&&!shadow.querySelector('dialog').open,'non-link container keyboard activation reveals without a dialog');
     const oldRect=gallery.getBoundingClientRect();
     await testSettings({mode:'off'});
     assert(!document.querySelector('.saf-mask')&&react.getAttribute('tabindex')==='-1','off restores original container tabindex and removes all masks');

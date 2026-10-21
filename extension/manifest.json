@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Steam AI Filter",
-  "version": "0.9.0",
-  "description": "檢查 Steam 遊戲的 AI 揭露，依用途標記、遮蔽或隱藏，支援本機快取與網路設定。",
+  "version": "0.10.0",
+  "description": "__MSG_extensionDescription__",
   "icons": {
     "16": "icons/icon16.png",
     "32": "icons/icon32.png",
@@ -35,6 +35,7 @@
         "https://store.steampowered.com/*"
       ],
       "js": [
+        "i18n.js",
         "lookup.js",
         "disclosure-keywords.js",
         "disclosure.js",
@@ -47,6 +48,17 @@
         "content.css"
       ],
       "run_at": "document_idle"
+    }
+  ],
+  "default_locale": "en",
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "icons/eye.svg"
+      ],
+      "matches": [
+        "https://store.steampowered.com/*"
+      ]
     }
   ]
 }

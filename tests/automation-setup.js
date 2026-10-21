@@ -1,4 +1,4 @@
-testBridge.data={};
+testBridge.data={language:'zh-Hant'};
 const art = "data:image/svg+xml,"+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="400" height="225"><rect width="400" height="225" fill="#416579"/><circle cx="310" cy="55" r="22" fill="#f2d798"/><path d="M0 190 110 55 220 190 300 100 400 210V225H0" fill="#799b95"/><path d="M0 225 170 130 270 225" fill="#2c4d5e"/></svg>');
 const quote = text=>`<section class="game_area_description"><h2>AI Generated Content Disclosure</h2><i>${text}</i></section>`;
 const ai = 'AI was used to generate character artwork and backgrounds.';

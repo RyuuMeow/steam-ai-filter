@@ -2,13 +2,10 @@
 var SAF;
 (function (SAF) {
     SAF.filterCategories = [...SAFDisclosure.categories, "unknown"];
-    SAF.categoryLabel = (category) => category === "unknown" ? "用途不明" : SAFDisclosure.packs[category].label;
-    SAF.settingKeys = ["mode", "level", "presentation", "filterCategories", "autoIgnore", "showChecked", "allow", "requestGap", "concurrency", "cacheDays"];
+    SAF.categoryLabel = (category) => SAFI18n.t(`filter.${category}`);
+    SAF.settingKeys = ["mode", "level", "presentation", "filterCategories", "autoIgnore", "showChecked", "hoverReveal", "allow", "requestGap", "concurrency", "cacheDays", "language"];
     SAF.modes = [
-        { id: "off", name: "關閉", description: "停止檢查，保留 Steam 原本的顯示方式。" },
-        { id: "mark", name: "標記", description: "為符合所選用途的遊戲加上標籤。" },
-        { id: "mask", name: "遮蔽", description: "遮蔽符合所選用途的遊戲，保留卡片位置。" },
-        { id: "hide", name: "隱藏", description: "隱藏符合所選用途的遊戲，收起卡片空間。" }
+        { id: "off" }, { id: "mark" }, { id: "mask" }, { id: "hide" }
     ];
     function normalizeMode(value) {
         return SAF.modes.find(mode => mode.id === value)?.id || "mask";
@@ -25,7 +22,7 @@ var SAF;
         const legacyMode = data.level === 0 ? "off" : data.level === 1 ? "mark" : data.presentation === "remove" ? "hide" : "mask";
         return { mode: data.mode === undefined ? legacyMode : normalizeMode(data.mode),
             filterCategories: normalizeCategories(data.filterCategories), autoIgnore: data.autoIgnore === true,
-            showChecked: data.showChecked !== false, allow: cleanAllow(data.allow),
+            showChecked: data.showChecked !== false, hoverReveal: data.hoverReveal === true, allow: cleanAllow(data.allow), language: SAFI18n.normalizeLanguage(data.language),
             requestGap: [700, 1000, 2000, 5000].includes(data.requestGap) ? data.requestGap : 700,
             concurrency: [1, 2, 3, 4].includes(data.concurrency) ? data.concurrency : 2,
             cacheDays: data.cacheDays === 1 || data.cacheDays === 7 || data.cacheDays === 30 ? data.cacheDays : 0 };
@@ -90,12 +87,12 @@ var SAF;
     SAF.shouldHide = shouldHide;
     function reason(e) {
         if (e.disclosure && e.tagMatch)
-            return "AI 使用揭露 · 人工智慧標籤";
+            return SAFI18n.t("reason.disclosureTag");
         if (e.disclosure)
-            return "AI 使用揭露";
+            return SAFI18n.t("reason.disclosure");
         if (e.tagMatch)
-            return "人工智慧標籤";
-        return e.parseIssue ? "資料讀取異常" : "本頁資訊不足";
+            return SAFI18n.t("reason.tag");
+        return SAFI18n.t(e.parseIssue ? "reason.parseIssue" : "reason.insufficient");
     }
     SAF.reason = reason;
     function readDisclosure(scope) {

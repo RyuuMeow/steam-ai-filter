@@ -3,12 +3,13 @@ const assert = require('node:assert/strict');
 const vm = require('node:vm');
 const fs = require('node:fs');
 const ctx = vm.createContext({URL, URLSearchParams, AbortSignal, structuredClone, console, setTimeout, clearTimeout});
-for (const name of ['lookup','disclosure-keywords','disclosure','core','ignore'])
+for (const name of ['i18n','lookup','disclosure-keywords','disclosure','core','ignore'])
   vm.runInContext(fs.readFileSync(`dist/${name}.js`,'utf8'),ctx);
+ctx.SAFI18n.setLanguage('zh-Hant');
 const I = ctx.SAFIgnore;
 const item = (id='101', patch={}) => ({id,title:`Game ${id}`,disclosure:'AI generated character art.',tagMatch:false,tagAvailable:true,parseIssue:false,...patch});
 function harness(saved) {
-  const h = {now:1_800_000_000_000, state:saved, settings:ctx.SAF.normalizeSettings(),
+  const h = {now:1_800_000_000_000, state:saved, settings:ctx.SAF.normalizeSettings({language:'zh-Hant'}),
     calls:[], posts:[], ignored:{}, accountId:'12345', scheduled:null, cache:{}, override:null};
   h.deps = {
     load:async()=>structuredClone(h.state),
@@ -35,6 +36,32 @@ function harness(saved) {
   h.tick=async(ms=30000)=>{h.now+=ms;await h.service.tick();};
   return h;
 }
+
+test('manual ignore is a confirmed one-shot operation without enabling automation',async()=>{
+  const h=harness();const result=await h.service.ignoreOne(item());
+  assert.equal(result.ok,true);assert.deepEqual(h.posts,['101']);
+  assert.equal(h.settings.autoIgnore,false);assert.equal(h.scheduled,null);assert.ok(h.state.done['101']);
+  assert.ok(!JSON.stringify(h.state).includes('abcdef0123456789abcdef01'));
+  assert.equal((await h.service.ignoreOne(item('102'))).ok,false,'rapid clicks respect the shared reservation');
+  assert.equal(h.posts.length,1);
+  h.now+=30000;assert.equal((await h.service.ignoreOne(item())).ok,true);
+  assert.equal(h.posts.length,1,'already ignored games are not written twice');
+});
+test('manual ignore rejects invalid IDs and login failures and never reports unconfirmed writes as success',async()=>{
+  const h=harness();assert.equal((await h.service.ignoreOne(item('invalid'))).ok,false);assert.equal(h.calls.length,0);
+  h.accountId='0';assert.equal((await h.service.ignoreOne(item())).ok,false);assert.equal(h.posts.length,0);
+  h.now+=30000;h.accountId='12345';
+  h.override=async(url,init)=>init.method==='POST'?Response.json({success:1}):undefined;
+  assert.equal((await h.service.ignoreOne(item())).ok,false);assert.equal(h.state.done['101'],undefined);
+  assert.equal(h.settings.autoIgnore,false);assert.equal(h.state.queue.length,0,'manual failures never create automatic retries');
+});
+test('manual actions honor shared throttling and reject account changes during existing automation',async()=>{
+  const h=harness();await h.enable();h.now+=30000;h.accountId='99999';
+  assert.equal((await h.service.ignoreOne(item())).ok,false);assert.equal(h.posts.length,0);
+  assert.equal(h.state.accountId,'12345');assert.equal(h.settings.autoIgnore,true);
+  const rate=harness();rate.deps.cooldown=async()=>rate.now+60000;
+  assert.equal((await rate.service.ignoreOne(item())).ok,false);assert.equal(rate.calls.length,0);
+});
 test('defaults are disclosure, mask, art selected, checks shown, and account changes off', async()=>{
   ctx.chrome={storage:{local:{get:async()=>({})}}};
   const s=await ctx.SAF.getSettings();
