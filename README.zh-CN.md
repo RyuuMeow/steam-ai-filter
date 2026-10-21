@@ -4,11 +4,11 @@
 
 在 Chrome 浏览 Steam 商店时，依开发者的 AI 使用披露过滤游戏。可以选择 AI 用途，并标记、遮罩或隐藏匹配的游戏卡片；默认只开启美术类别。
 
-当前源代码版本为 **v0.10.2（尚未发布）**，可直接加载编译好的 [extension/](extension/) 文件夹。已发布的 **v0.8.0** 安装包可从 [Releases](https://github.com/RyuuMeow/steam-ai-filter/releases/latest) 或 [RAR 下载链接](https://github.com/RyuuMeow/steam-ai-filter/releases/download/v0.8.0/steam-ai-filter-v0.8.0.rar) 获取。以下功能说明对应 v0.10.2；安装编译好的扩展不需要 Node.js。
+当前版本为 **v0.10.2**，可从 [Releases](https://github.com/RyuuMeow/steam-ai-filter/releases/latest) 或 [RAR 下载链接](https://github.com/RyuuMeow/steam-ai-filter/releases/download/v0.10.2/steam-ai-filter-v0.10.2.rar) 获取，也可直接加载编译好的 [extension/](extension/) 文件夹。安装编译好的扩展不需要 Node.js。
 
 ## 安装
 
-1. 下载并解压 v0.8.0 Release 的 RAR，或通过 **Code → Download ZIP** 下载并完整解压本仓库。使用仓库时，选择其中的 `extension/` 文件夹。
+1. 下载并解压 v0.10.2 Release 的 RAR，或通过 **Code → Download ZIP** 下载并完整解压本仓库。使用仓库时，选择其中的 `extension/` 文件夹。
 2. 打开 `chrome://extensions`，开启**开发者模式**，点击**加载已解压的扩展程序**。
 3. 选择直接包含 `manifest.json` 的扩展文件夹。安装后请保留该文件夹。
 4. 刷新所有 Steam 商店标签页。从 Chrome 扩展菜单固定 **Steam AI Filter**，点击其图标打开设置。

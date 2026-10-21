@@ -8,7 +8,7 @@
 - **25 個瀏覽器情境、435 項斷言**通過，涵蓋互動、卡片分組、版面、失效還原與 Mask 效能。
 - `npm run package:check`：**41 個安裝檔案**與建置一致，包含三語描述、Tabler MIT 圖示及授權，不含測試替身。
 - 已目視檢查三語主面板、霧面遮罩、三個操作按鈕、眼睛恢復按鈕與實際展開的下拉選單。
-- 未發布 Release，可重新載入 `extension/` 試用。
+- 發版流程另行驗證版本標籤、安裝包一致性與 RAR 解壓後的完整檔案內容，通過後發布 [v0.10.2 Release](https://github.com/RyuuMeow/steam-ai-filter/releases/tag/v0.10.2)。
 
 ## 本次驗收
 

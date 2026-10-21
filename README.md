@@ -4,9 +4,9 @@
 
 在 Chrome 瀏覽 Steam 商店時，依商品頁的 AI 使用揭露過濾遊戲。可以標記、遮蔽或隱藏符合所選用途的遊戲卡片。
 
-目前原始碼版本 **v0.10.2（尚未發布）**，可直接載入 [extension/](extension/)；已發布的 **v0.8.0** 安裝包可從 [Releases](https://github.com/RyuuMeow/steam-ai-filter/releases/latest) 下載。以下功能說明對應 v0.10.2，安裝編譯好的插件不需要 Node.js。
+目前版本 **v0.10.2**，安裝包可從 [Releases](https://github.com/RyuuMeow/steam-ai-filter/releases/latest) 下載，也可直接載入 [extension/](extension/)。安裝編譯好的插件不需要 Node.js。
 
-[下載插件 RAR](https://github.com/RyuuMeow/steam-ai-filter/releases/download/v0.8.0/steam-ai-filter-v0.8.0.rar) · [MIT 授權](LICENSE)
+[下載插件 RAR](https://github.com/RyuuMeow/steam-ai-filter/releases/download/v0.10.2/steam-ai-filter-v0.10.2.rar) · [MIT 授權](LICENSE)
 
 - **四種模式**：關閉、標記、遮蔽、隱藏，直接由同一個拉桿選擇。
 - **自選 AI 用途**：美術、音樂／音效、配音、劇情／文字、翻譯、程式碼、用途不明；預設只開美術。
@@ -18,12 +18,12 @@
 
 ### 1. 下載並解壓縮
 
-開啟 **[最新 Release](https://github.com/RyuuMeow/steam-ai-filter/releases/latest)**，在 **Assets** 下載 **`steam-ai-filter-v0.8.0.rar`**。
+開啟 **[最新 Release](https://github.com/RyuuMeow/steam-ai-filter/releases/latest)**，在 **Assets** 下載 **`steam-ai-filter-v0.10.2.rar`**。
 
-將 RAR **解壓縮至同名資料夾**（例如 WinRAR 的「解壓縮至 steam-ai-filter-v0.8.0\\」）。這個資料夾就是稍後要選取的插件，裡面直接有 `manifest.json`。
+將 RAR **解壓縮至同名資料夾**（例如 WinRAR 的「解壓縮至 steam-ai-filter-v0.10.2\\」）。這個資料夾就是稍後要選取的插件，裡面直接有 `manifest.json`。
 
 ```text
-steam-ai-filter-v0.8.0/  ← 在 Chrome 選這一層
+steam-ai-filter-v0.10.2/  ← 在 Chrome 選這一層
 ├── manifest.json
 ├── background.js
 ├── popup.html

@@ -34,7 +34,7 @@ npm run dev
 npm run test:browser
 ```
 
-此入口會啟動本機 localhost 預覽與無介面 Chromium，依序執行 24 個情境（含五種失效原因的遮蔽／隱藏組合），結束後停止程序。Windows 自動尋找本機 Playwright Chromium、Chrome 或 Edge；其他位置／平台可指定 `BROWSER_BIN`。不額外安裝瀏覽器或 npm 套件。結果寫入忽略追蹤的 `artifacts/browser-tests/`，失敗會保存截圖。
+此入口會啟動本機 localhost 預覽與無介面 Chromium，依序執行 25 個情境（含五種失效原因的遮蔽／隱藏組合與遮罩效能回歸），結束後停止程序。Windows 自動尋找本機 Playwright Chromium、Chrome 或 Edge；其他位置／平台可指定 `BROWSER_BIN`。不額外安裝瀏覽器或 npm 套件。結果寫入忽略追蹤的 `artifacts/browser-tests/`，失敗會保存截圖。
 
 開發時可針對範圍執行 `node scripts/test-browser.mjs settings categories`（先建置）。`node scripts/test-browser.mjs --preview` 可擷取新模式與設定頁截圖；互動預覽為 `http://127.0.0.1:4173/tests/settings.html`。
 
