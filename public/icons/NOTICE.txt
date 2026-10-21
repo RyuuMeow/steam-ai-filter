@@ -1,8 +1,23 @@
-settings.svg: cog from small-n-flat by Paomedia, CC0 1.0 Universal.
-Source: https://github.com/paomedia/small-n-flat/blob/master/svg/cog.svg
-License: https://github.com/paomedia/small-n-flat/blob/master/LICENSE
-The downloaded SVG is unmodified. Full license: settings.LICENSE.txt.
+UI SVG icons: Linea Iconset, CC0 1.0 Universal.
+Source: https://github.com/linea-io/Linea-Iconset
+License: https://github.com/linea-io/Linea-Iconset/blob/master/LICENSE
+Full license: linea.LICENSE.txt.
 
-eye.svg: Eye from SVG Repo, CC0 1.0 Universal; original path data retained.
-Source: https://www.svgrepo.com/svg/26260/eye
-SVG source mirror: https://www.svgviewer.dev/s/301471/eye
+Original geometry is retained. SVG export metadata is removed; stroke width
+is set to 5 on the 64-unit grid and viewBox to -4 -4 72 72 for small UI sizes.
+
+Local file       Original source path
+settings.svg     _basic/_SVG/basic_gear.svg
+eye.svg          _basic/_SVG/basic_eye.svg
+ai.svg           _basic/_SVG/basic_star.svg
+art.svg          _basic/_SVG/basic_picture.svg
+music.svg        _music/_SVG/music_note_single.svg
+voice.svg        _music/_SVG/music_microphone.svg
+text.svg         _basic/_SVG/basic_message_txt.svg
+translation.svg  _basic/_SVG/basic_world.svg
+code.svg         _basic/_SVG/basic_keyboard.svg
+unknown.svg      _basic/_SVG/basic_question.svg
+back.svg         _arrows/_SVG/arrows_slim_left.svg
+right.svg        _arrows/_SVG/arrows_right.svg
+down.svg         _arrows/_SVG/arrows_down.svg
+check.svg        _arrows/_SVG/arrows_check.svg

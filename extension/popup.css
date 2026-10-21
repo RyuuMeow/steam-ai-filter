@@ -21,27 +21,27 @@ h1 { flex: 1; font-size: 16px; font-weight: 600; margin: 0; }
 h1:focus { outline: none; }
 .icon-button { display: grid; place-items: center; flex: 0 0 36px; height: 36px; padding: 8px; border: 0; border-radius: 8px; background: transparent; color: var(--muted); cursor: pointer; }
 .icon-button:hover { background: #edf0f4; color: var(--ink); }
-.icon-button svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.icon-button img { display: block; width: 20px; height: 20px; }
 #back { margin-left: -8px; }
 #settings { margin-right: -8px; }
 .settings-list { display: grid; gap: 4px; }
 .settings-list button { display: flex; justify-content: space-between; align-items: center; width: 100%; min-height: 48px; padding: 10px 12px; border: 0; border-radius: 8px; background: transparent; color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
 .settings-list button:hover { background: #edf0f4; }
-.settings-list button span[aria-hidden] { color: var(--muted); font-size: 22px; line-height: 1; }
+.settings-list button img { width: 18px; height: 18px; opacity: .55; }
 .settings-list button span[data-i18n] { flex: 1; }
 .field { display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px; font-weight: 600; }
-select { width: 100%; min-width: 0; min-height: 42px; border: 1px solid var(--line); border-radius: 8px; padding: 9px 12px; background: var(--surface); color: var(--ink); font: inherit; font-weight: 400; cursor: pointer; }
-@supports (appearance: base-select) {
-  select, select::picker(select) { appearance: base-select; }
-  select::picker(select) { border: 1px solid var(--line); border-radius: 10px; padding: 4px; background: var(--surface); color: var(--ink); box-shadow: 0 6px 24px #22243518; font: inherit; }
-  select::picker-icon { color: var(--muted); transition: rotate 160ms; }
-  select:open::picker-icon { rotate: 180deg; }
-  option { padding: 9px 10px; border-radius: 6px; white-space: normal; font-weight: 400; }
-  option:hover, option:focus { background: #edf3ff; }
-  option:checked { background: #e7efff; color: var(--blue-deep); }
-  option::checkmark { color: var(--blue-deep); }
-}
-select:focus-visible { outline: 2px solid var(--blue-deep); outline-offset: 2px; }
+.select-control { min-width: 0; font-weight: 400; }
+.select-trigger { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; min-height: 42px; border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; background: var(--surface); color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
+.select-trigger span { min-width: 0; }
+.select-trigger img { flex: 0 0 18px; width: 18px; height: 18px; opacity: .65; transition: transform 140ms; }
+.select-trigger[aria-expanded="true"] { border-color: var(--blue-deep); }
+.select-trigger[aria-expanded="true"] img { transform: rotate(180deg); }
+.select-options { margin-top: 6px; padding: 4px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+.select-option { position: relative; padding: 10px 32px 10px 10px; border-radius: 6px; cursor: pointer; }
+.select-option:hover, .select-option.is-active { background: #edf3ff; }
+.select-option[aria-selected="true"] { color: var(--blue-deep); font-weight: 600; }
+.select-option[aria-selected="true"]::after { content: ""; position: absolute; top: 50%; right: 8px; width: 20px; height: 20px; transform: translateY(-50%); background: currentColor; mask: url("icons/check.svg") center / contain no-repeat; }
+.select-trigger:focus-visible { outline: 2px solid var(--blue-deep); outline-offset: 2px; }
 .help { color: var(--supporting); font-size: 13px; line-height: 1.6; margin: 12px 0 16px; }
 main > section[data-view] { animation: enter 160ms ease-out; }
 @keyframes enter { from { opacity: .4; transform: translateX(6px); } to { opacity: 1; transform: translateX(0); } }

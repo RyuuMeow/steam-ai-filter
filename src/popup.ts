@@ -16,6 +16,7 @@
     label.append(text, toggle); $("#category-list").append(label); categoryToggles.set(category, toggle);
   }
   const fields = {cacheDays: $<HTMLSelectElement>("#cache-days"), requestGap: $<HTMLSelectElement>("#request-gap"), concurrency: $<HTMLSelectElement>("#concurrency")};
+  const selects = Array.from(document.querySelectorAll<HTMLSelectElement>("select"), SAFSelect.enhance);
   const titles: Record<string, SAFI18n.MessageKey> = {home: "category.home", settings: "category.settings", checking: "category.checking", network: "category.network", display: "category.display", automation: "category.automation", language: "category.language"};
   const routes: {view: string; scroll: number; trigger?: HTMLElement}[] = [{view: "home", scroll: 0}];
   function navigate(view?: string, trigger?: HTMLElement) {
@@ -75,6 +76,7 @@
     for (const [category, toggle] of categoryToggles) toggle.checked = settings.filterCategories[category];
     autoIgnore.checked = settings.autoIgnore; showChecked.checked = settings.showChecked; hoverReveal.checked = settings.hoverReveal;
     for (const [key, field] of Object.entries(fields)) field.value = String(settings[key as keyof typeof fields]);
+    selects.forEach(sync => sync());
     paintIgnore();
   }
   function paintIgnore() {
@@ -212,6 +214,7 @@
       isStoreTab = Boolean(tab?.url?.startsWith("https://store.steampowered.com/")); tabId = tab?.id;
       await refresh();
       for (const element of document.querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLButtonElement>("input, select, #clear-cache")) element.disabled = false;
+      selects.forEach(sync => sync());
     } catch (e) { report(e); }
   })();
 })();

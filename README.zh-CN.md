@@ -4,7 +4,7 @@
 
 在 Chrome 浏览 Steam 商店时，依开发者的 AI 使用披露过滤游戏。可以选择 AI 用途，并标记、遮罩或隐藏匹配的游戏卡片；默认只开启美术类别。
 
-当前源代码版本为 **v0.10.0（尚未发布）**，可直接加载编译好的 [extension/](extension/) 文件夹。已发布的 **v0.8.0** 安装包可从 [Releases](https://github.com/RyuuMeow/steam-ai-filter/releases/latest) 或 [RAR 下载链接](https://github.com/RyuuMeow/steam-ai-filter/releases/download/v0.8.0/steam-ai-filter-v0.8.0.rar) 获取。以下功能说明对应 v0.10.0；安装编译好的扩展不需要 Node.js。
+当前源代码版本为 **v0.10.1（尚未发布）**，可直接加载编译好的 [extension/](extension/) 文件夹。已发布的 **v0.8.0** 安装包可从 [Releases](https://github.com/RyuuMeow/steam-ai-filter/releases/latest) 或 [RAR 下载链接](https://github.com/RyuuMeow/steam-ai-filter/releases/download/v0.8.0/steam-ai-filter-v0.8.0.rar) 获取。以下功能说明对应 v0.10.1；安装编译好的扩展不需要 Node.js。
 
 ## 安装
 
@@ -37,7 +37,7 @@
 
 ## 更新
 
-将新版文件覆盖到 Chrome 已加载的文件夹，在 `chrome://extensions` 重新加载扩展，再刷新所有 Steam 商店标签页。使用源代码编译版本时，应显示 **0.10.0**。扩展更新后出现 `Extension context invalidated`，刷新 Steam 页面即可。
+将新版文件覆盖到 Chrome 已加载的文件夹，在 `chrome://extensions` 重新加载扩展，再刷新所有 Steam 商店标签页。使用源代码编译版本时，应显示 **0.10.1**。扩展更新后出现 `Extension context invalidated`，刷新 Steam 页面即可。
 
 ## 支持范围与隐私
 

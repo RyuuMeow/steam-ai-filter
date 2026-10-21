@@ -27,6 +27,8 @@ if(location.search.includes('test=1'))(async()=>{
     assert(!document.querySelector('#saf-root').shadowRoot.querySelector('dialog').open&&!card.querySelector('img').inert,'reveal restores interaction without opening a dialog');
     const eye=card.querySelector('.saf-remask');await until(()=>eye.querySelector('img').complete);
     assert(eye.querySelector('img').naturalWidth>0&&eye.getAttribute('aria-label')==='恢復遮蔽','eye uses a loaded asset with an accessible name');
+    const eyeBox=eye.getBoundingClientRect(),iconBox=eye.querySelector('img').getBoundingClientRect();
+    assert(eyeBox.width===32&&eyeBox.height===32&&Math.abs(eyeBox.left+16-iconBox.left-iconBox.width/2)<.5&&Math.abs(eyeBox.top+16-iconBox.top-iconBox.height/2)<.5,'eye icon is centered in a fixed 32px target');
     eye.click();assert(masked(card)&&!card.querySelector('.saf-remask'),'eye restores masking');
     assert(getComputedStyle(card).position!=='static'&&card.querySelector('.saf-mask').getBoundingClientRect().width===card.getBoundingClientRect().width,'eye restore keeps the mask anchored to its own card');
     await set({hoverReveal:true});
@@ -36,6 +38,11 @@ if(location.search.includes('test=1'))(async()=>{
     assert(masked(card)&&!Object.hasOwn(testBridge.data.allow,'902'),'pointer leave remasks without creating an exception');
     const bounds=card.getBoundingClientRect(),cover=card.querySelector('.saf-mask').getBoundingClientRect();
     assert(Math.abs(bounds.width-cover.width)<1&&Math.abs(bounds.height-cover.height)<1&&Math.abs(bounds.left-cover.left)<1&&Math.abs(bounds.top-cover.top)<1,'restored mask stays inside a card whose original position is static');
+    for(let i=0;i<3;i++) {
+      await pointer({type:'move',...point(card)});assert(!masked(card),`hover cycle ${i+1} reveals`);
+      await pointer({type:'move',x:20,y:20});
+      assert(masked(card)&&card.querySelector('.saf-mask').getBoundingClientRect().width===card.getBoundingClientRect().width,`hover cycle ${i+1} restores within bounds`);
+    }
     await pointer({type:'move',...point(card)});
     const event=new MouseEvent('click',{bubbles:true,cancelable:true});card.dispatchEvent(event);
     await pointer({type:'move',x:20,y:20});
@@ -100,10 +107,29 @@ if(location.search.includes('test=1'))(async()=>{
     slider.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowLeft',bubbles:true,cancelable:true}));
     await until(()=>testBridge.data.mode==='mask');assert(slider.value==='2','keyboard advances by exactly one mode');
     doc.querySelector('#settings').click();doc.querySelector('[data-open=network]').click();
-    assert(frame.contentWindow.CSS.supports('appearance','base-select'),'browser supports themed select popovers');
-    const select=doc.querySelector('#request-gap');await pointer({type:'click',...point(select,true)});
-    assert(select.matches(':open'),'native themed dropdown opens with trusted input');
-    await pointer({type:'click',x:20,y:20});
+    const select=doc.querySelector('#request-gap-trigger'),list=doc.querySelector('#request-gap-options');
+    await pointer({type:'click',...point(select,true)});
+    assert(!list.hidden&&select.getAttribute('aria-expanded')==='true','dropdown opens with trusted input');
+    const sr=select.getBoundingClientRect(),lr=list.getBoundingClientRect();
+    assert(lr.top>=sr.bottom&&lr.left>=0&&lr.right<=320&&lr.bottom<=frame.clientHeight,'all dropdown options expand below the field and fit the popup');
+    await pointer({type:'click',...point(list.children[2],true)});await until(()=>testBridge.data.requestGap===2000);
+    assert(list.hidden&&select.textContent.includes('2 seconds')&&doc.activeElement===select,'clicking an option saves and restores focus');
+    const key=value=>select.dispatchEvent(new KeyboardEvent('keydown',{key:value,bubbles:true,cancelable:true}));
+    key('Enter');key('End');key('Enter');await until(()=>testBridge.data.requestGap===5000);
+    assert(list.hidden&&select.textContent.includes('5 seconds'),'keyboard selection saves the highlighted option');
+    key('Enter');key('Home');
+    const escape=new KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true});select.dispatchEvent(escape);
+    assert(list.hidden&&testBridge.data.requestGap===5000&&!select.hasAttribute('aria-activedescendant')&&escape.defaultPrevented,'Escape discards the draft option without dismissing the extension popup');
+    key('Enter');key('Tab');assert(list.hidden,'Tab closes the list without trapping focus');
+    key('Enter');await pointer({type:'click',...point(doc.querySelector('#page-title'),true)});assert(list.hidden,'outside click closes the list');
+    doc.querySelector('#back').click();doc.querySelector('[data-open=checking]').click();
+    for(const locale of ['zh-Hant','zh-Hans','en']) {
+      await set({language:locale});
+      const trigger=doc.querySelector('#cache-days-trigger');await pointer({type:'click',...point(trigger,true)});
+      const options=doc.querySelector('#cache-days-options'),r=options.getBoundingClientRect();
+      assert(!options.hidden&&r.bottom<=frame.clientHeight&&doc.documentElement.scrollWidth===320,`${locale} cache dropdown is fully visible at 320px`);
+      await pointer({type:'click',...point(options.children[3],true)});await until(()=>testBridge.data.cacheDays===30);
+    }
     const old=doc;frame.contentWindow.location.reload();
     await until(()=>frame.contentDocument!==old&&frame.contentDocument?.querySelector('#strength')?.disabled===false);doc=frame.contentDocument;
     assert(doc.documentElement.lang==='en'&&doc.querySelector('#language').value==='en','chosen language survives popup reopening');

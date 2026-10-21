@@ -4,7 +4,7 @@
 
 A Chrome extension that filters Steam store games using developers' AI content disclosures. Choose which AI uses to filter, then mark, mask, or hide matching games. Art is the only category enabled by default.
 
-The source version is **v0.10.0 (unreleased)**. Load the built [extension/](extension/) directory to use these features. The published **v0.8.0** package remains available from [Releases](https://github.com/RyuuMeow/steam-ai-filter/releases/latest) or the [RAR download](https://github.com/RyuuMeow/steam-ai-filter/releases/download/v0.8.0/steam-ai-filter-v0.8.0.rar). Installing a built extension does not require Node.js.
+The source version is **v0.10.1 (unreleased)**. Load the built [extension/](extension/) directory to use these features. The published **v0.8.0** package remains available from [Releases](https://github.com/RyuuMeow/steam-ai-filter/releases/latest) or the [RAR download](https://github.com/RyuuMeow/steam-ai-filter/releases/download/v0.8.0/steam-ai-filter-v0.8.0.rar). Installing a built extension does not require Node.js.
 
 ## Install
 
@@ -37,7 +37,7 @@ The [Traditional Chinese installation guide](README.md#安裝) includes screensh
 
 ## Update
 
-Replace the files in the directory Chrome already uses, reload the extension at `chrome://extensions`, then refresh all Steam store tabs. The source build should show version **0.10.0**. Refreshing also resolves `Extension context invalidated` notices after an extension update.
+Replace the files in the directory Chrome already uses, reload the extension at `chrome://extensions`, then refresh all Steam store tabs. The source build should show version **0.10.1**. Refreshing also resolves `Extension context invalidated` notices after an extension update.
 
 ## Scope and privacy
 

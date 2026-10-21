@@ -232,6 +232,10 @@
     return {...actionState.get(evidence.id), reveal: () => revealCard(card),
       allow: () => { void allowCard(evidence); }, ignore: () => { void ignoreCard(evidence); }};
   }
+  function icon(name: string): HTMLImageElement {
+    const image = document.createElement("img"); image.alt = "";
+    image.src = chrome.runtime.getURL(`icons/${name}.svg`); return image;
+  }
   function watchCard(card: Element) {
     if (watched.has(card)) return;
     watched.add(card);
@@ -309,11 +313,11 @@
           const labels: SAF.FilterCategory[] = uses.length ? [...uses] : ["unknown"];
           const signature = settings.language + labels.join(",");
           if (badge.dataset.uses !== signature) {
-            const ai = document.createElement("span"); ai.className = "saf-chip saf-chip-ai"; ai.textContent = "AI";
+            const ai = document.createElement("span"); ai.className = "saf-chip saf-chip-ai"; ai.append(icon("ai"), "AI");
             badge.replaceChildren(ai);
             for (const category of labels) {
               const chip = document.createElement("span"); chip.className = `saf-chip saf-chip-${category}`;
-              chip.textContent = SAF.categoryLabel(category); badge.append(chip);
+              chip.append(icon(category), SAF.categoryLabel(category)); badge.append(chip);
             }
             badge.dataset.uses = signature;
           }
@@ -342,7 +346,7 @@
         else if (!checked) {
           const check = document.createElement("span");
           check.className = "saf-checked";
-          check.innerHTML = '<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 8 2.5 2.5L12 5"/></svg>';
+          check.append(icon("check"));
           check.setAttribute("role", "img");
           if (getComputedStyle(element).position === "static") element.classList.add("saf-badge-positioned");
           element.append(check);
@@ -358,7 +362,7 @@
         else {
           if (!restore) {
             restore = document.createElement("button"); restore.type = "button"; restore.className = "saf-remask";
-            const icon = document.createElement("img"); icon.alt = ""; icon.src = chrome.runtime.getURL("icons/eye.svg"); restore.append(icon);
+            restore.append(icon("eye"));
             restore.onclick = event => { event.preventDefault(); event.stopPropagation(); restoreCard(element); };
             element.append(restore);
           }

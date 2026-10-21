@@ -128,7 +128,7 @@ try {
       const shot=await send('Page.captureScreenshot',{format:'png'});
       await writeFile(`artifacts/browser-tests/preview-${page}.png`,Buffer.from(shot.data,'base64'));
     }
-    const selectPoint=await send('Runtime.evaluate',{expression:"(()=>{const frame=document.querySelector('iframe'),f=frame.getBoundingClientRect(),r=frame.contentDocument.querySelector('#request-gap').getBoundingClientRect();return{x:f.left+r.left+r.width/2,y:f.top+r.top+r.height/2}})()",returnByValue:true});
+    const selectPoint=await send('Runtime.evaluate',{expression:"(()=>{const frame=document.querySelector('iframe'),f=frame.getBoundingClientRect(),r=frame.contentDocument.querySelector('#request-gap-trigger').getBoundingClientRect();return{x:f.left+r.left+r.width/2,y:f.top+r.top+r.height/2}})()",returnByValue:true});
     await send('Input.dispatchMouseEvent',{type:'mousePressed',...selectPoint.result.value,button:'left',clickCount:1});
     await send('Input.dispatchMouseEvent',{type:'mouseReleased',...selectPoint.result.value,button:'left',clickCount:1});await delay(200);
     shot=await send('Page.captureScreenshot',{format:'png'});

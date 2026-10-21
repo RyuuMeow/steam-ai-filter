@@ -10,13 +10,14 @@
   <script src="disclosure.js" defer></script>
   <script src="i18n.js" defer></script>
   <script src="core.js" defer></script>
+  <script src="select.js" defer></script>
   <script src="popup.js" defer></script>
 </head>
 <body>
   <main>
     <header class="panel-header">
       <button id="back" class="icon-button" data-i18n-aria="nav.backLabel" data-i18n-title="nav.back" hidden>
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 5-7 7 7 7M5 12h14"/></svg>
+        <img src="icons/back.svg" width="20" height="20" alt="">
       </button>
       <h1 id="page-title" tabindex="-1">AI 過濾</h1>
       <button id="settings" class="icon-button" data-open="settings" data-i18n-aria="category.settings" data-i18n-title="category.settings">
@@ -39,27 +40,27 @@
     </section>
     <section data-view="settings" hidden>
       <nav class="settings-list" data-i18n-aria="nav.categories">
-        <button data-open="checking"><span data-i18n="category.checking"></span><span aria-hidden="true">›</span></button>
-        <button data-open="network"><span data-i18n="category.network"></span><span aria-hidden="true">›</span></button>
-        <button data-open="display"><span data-i18n="category.display"></span><span aria-hidden="true">›</span></button>
-        <button data-open="automation"><span data-i18n="category.automation"></span><span aria-hidden="true">›</span></button>
-        <button data-open="language"><span data-i18n="category.language"></span><span aria-hidden="true">›</span></button>
+        <button data-open="checking"><span data-i18n="category.checking"></span><img src="icons/right.svg" alt=""></button>
+        <button data-open="network"><span data-i18n="category.network"></span><img src="icons/right.svg" alt=""></button>
+        <button data-open="display"><span data-i18n="category.display"></span><img src="icons/right.svg" alt=""></button>
+        <button data-open="automation"><span data-i18n="category.automation"></span><img src="icons/right.svg" alt=""></button>
+        <button data-open="language"><span data-i18n="category.language"></span><img src="icons/right.svg" alt=""></button>
       </nav>
     </section>
     <section data-view="checking" hidden>
-      <label class="field" for="cache-days"><span data-i18n="label.cacheDays"></span>
+      <div class="field"><label for="cache-days" data-i18n="label.cacheDays"></label>
         <select id="cache-days" disabled><option value="0" data-i18n="option.cacheDefault"></option><option value="1"></option><option value="7"></option><option value="30"></option></select>
-      </label>
+      </div>
       <button id="clear-cache" class="text-button" disabled data-i18n="action.clearCache"></button>
       <p id="cache-result" role="status" hidden></p>
     </section>
     <section data-view="network" hidden>
-      <label class="field" for="request-gap"><span data-i18n="label.requestGap"></span>
+      <div class="field"><label for="request-gap" data-i18n="label.requestGap"></label>
         <select id="request-gap" disabled><option value="700"></option><option value="1000"></option><option value="2000"></option><option value="5000"></option></select>
-      </label>
-      <label class="field" for="concurrency"><span data-i18n="label.concurrency"></span>
+      </div>
+      <div class="field"><label for="concurrency" data-i18n="label.concurrency"></label>
         <select id="concurrency" disabled><option value="1">1</option><option value="2">2（預設）</option><option value="3">3</option><option value="4">4</option></select>
-      </label>
+      </div>
     </section>
     <section data-view="display" hidden>
       <label class="toggle-row" for="show-checked"><span data-i18n="label.showChecked"></span><input id="show-checked" type="checkbox" role="switch" checked disabled></label>
@@ -74,9 +75,9 @@
       </section>
     </section>
     <section data-view="language" hidden>
-      <label class="field" for="language"><span data-i18n="label.language"></span>
+      <div class="field"><label for="language" data-i18n="label.language"></label>
         <select id="language" disabled><option value="en">English</option><option value="zh-Hant">繁體中文</option><option value="zh-Hans">简体中文</option></select>
-      </label>
+      </div>
     </section>
     <p id="connection" role="status" hidden></p>
     <p id="error" role="alert" hidden></p>

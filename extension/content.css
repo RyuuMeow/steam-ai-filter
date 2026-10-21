@@ -25,8 +25,8 @@
 }
 .saf-mask-label { color: inherit !important; font: 600 14px/1.4 "Segoe UI", "Microsoft JhengHei", sans-serif !important; text-shadow: 0 1px 3px #0008; transition: opacity 140ms; }
 .saf-mask-actions { position: absolute; inset: 4px; display: flex; flex-wrap: wrap; gap: 4px; align-content: center; justify-content: center; align-items: center; opacity: 0; transition: opacity 140ms; }
-.saf-mask-actions button { appearance: none; border: 1px solid #ffffff35; border-radius: 6px; padding: 5px 8px; background: #172330e6; color: #f4f7fa; font: 13px/1.3 "Segoe UI", "Microsoft JhengHei", sans-serif; cursor: pointer; min-height: 28px; }
-.saf-mask-actions button:hover { background: #3e5368; }
+.saf-mask-actions button { appearance: none !important; border: 0 !important; border-radius: 4px !important; padding: 6px 8px !important; background: transparent !important; box-shadow: none !important; color: #fff !important; font: 600 13px/1.4 "Segoe UI", "Microsoft JhengHei", sans-serif !important; text-shadow: 0 1px 4px #000a; cursor: pointer; min-height: 30px; }
+.saf-mask-actions button:hover { text-decoration: underline; text-underline-offset: 4px; }
 .saf-mask-actions button:focus-visible { outline: 2px solid #80d7ff; outline-offset: 2px; }
 .saf-mask-actions button:disabled { cursor: default; opacity: .65; }
 .saf-blocked:is(:hover, :focus-within) .saf-mask-actions, .saf-mask-busy .saf-mask-actions { opacity: 1; }
@@ -37,19 +37,20 @@
 @media (hover: none) { .saf-mask-actions { opacity: 1; } .saf-mask-label { opacity: 0; } }
 .saf-blocked:focus-visible { outline: 2px solid #80d7ff !important; outline-offset: 3px !important; }
 .saf-home-badge { position: absolute !important; left: 8px !important; bottom: 8px !important; z-index: 5 !important; max-width: calc(100% - 16px) !important; }
-.saf-home-badge::before { content: ""; position: absolute; inset: -12px -14px; background: radial-gradient(ellipse, #ffffff80 0%, #ffffff30 45%, transparent 75%); pointer-events: none; z-index: -1; }
+.saf-home-badge::before { content: ""; position: absolute; inset: -16px -48px -20px -40px; background: radial-gradient(ellipse closest-side, #fff 0%, #fffffff5 58%, #ffffffa0 78%, #ffffff00 100%); pointer-events: none; z-index: -1; }
 .saf-badge {
   display: inline-flex !important; flex-wrap: wrap !important; gap: 4px !important;
   margin: 4px 0 0 !important; padding: 0 !important; border: 0 !important;
   background: transparent !important; cursor: pointer !important; white-space: normal !important;
 }
 .saf-chip {
-  display: inline-block !important; padding: 2px 7px !important; border: 0 !important; border-radius: 5px !important;
-  background: #34485b !important; color: #f1f5f9 !important;
+  display: inline-flex !important; align-items: center !important; gap: 4px !important; padding: 3px 9px 3px 6px !important; border: 0 !important; border-radius: 999px !important;
+  background: #34485b !important; color: #fff !important;
   font: 600 12px/1.5 "Segoe UI", "Microsoft JhengHei", sans-serif !important; white-space: nowrap !important;
 }
 .saf-chip-ai { background: #2563b6 !important; color: #fff !important; }
 .saf-chip-unknown { background: #705419 !important; color: #fff4d3 !important; }
+.saf-chip img, .saf-checked img { display: block !important; flex: 0 0 16px !important; width: 16px !important; height: 16px !important; min-height: 0 !important; max-width: none !important; margin: 0 !important; padding: 0 !important; border: 0 !important; background: none !important; box-shadow: none !important; filter: invert(1) !important; object-fit: contain !important; }
 .saf-badge:focus-visible { outline: 2px solid #80d7ff !important; outline-offset: 3px !important; border-radius: 5px !important; }
 .saf-checked {
   position: absolute !important; top: 6px !important; right: 6px !important; z-index: 2147483647 !important;
@@ -58,10 +59,10 @@
   background: #197847 !important; color: #fff !important; border: 0 !important;
   opacity: 1 !important; visibility: visible !important; pointer-events: auto !important;
 }
-.saf-checked svg { display: block !important; width: 16px !important; height: 16px !important; }
+.saf-checked-matched img { filter: none !important; }
 .saf-checked-matched { background: #e6b84a !important; color: #47320b !important; }
-.saf-remask { position: absolute !important; top: 6px !important; right: 6px !important; z-index: 6 !important; display: grid !important; place-items: center !important; width: 32px !important; height: 32px !important; padding: 6px !important; border: 1px solid #ffffff55 !important; border-radius: 50% !important; background: #172330df !important; cursor: pointer !important; animation: saf-appear 140ms ease-out; }
-.saf-remask img { display: block !important; width: 20px !important; height: 20px !important; margin: 0 !important; padding: 0 !important; border: 0 !important; background: none !important; box-shadow: none !important; filter: invert(1) !important; }
+.saf-remask { box-sizing: border-box !important; position: absolute !important; top: 6px !important; right: 6px !important; z-index: 6 !important; display: flex !important; align-items: center !important; justify-content: center !important; width: 32px !important; height: 32px !important; min-width: 32px !important; min-height: 32px !important; margin: 0 !important; padding: 0 !important; line-height: 0 !important; border: 1px solid #ffffff55 !important; border-radius: 50% !important; background: #172330df !important; cursor: pointer !important; animation: saf-appear 140ms ease-out; }
+.saf-remask img { display: block !important; flex: 0 0 20px !important; width: 20px !important; height: 20px !important; min-height: 0 !important; max-width: none !important; margin: 0 !important; padding: 0 !important; border: 0 !important; background: none !important; box-shadow: none !important; object-fit: contain !important; filter: invert(1) !important; }
 .saf-remask:focus-visible { outline: 2px solid #80d7ff !important; outline-offset: 2px !important; }
 @keyframes saf-appear { from { opacity: 0; } to { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .saf-mask-actions, .saf-mask-label, .saf-remask { animation: none !important; transition: none !important; } }

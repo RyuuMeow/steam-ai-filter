@@ -24,6 +24,7 @@
         categoryToggles.set(category, toggle);
     }
     const fields = { cacheDays: $("#cache-days"), requestGap: $("#request-gap"), concurrency: $("#concurrency") };
+    const selects = Array.from(document.querySelectorAll("select"), SAFSelect.enhance);
     const titles = { home: "category.home", settings: "category.settings", checking: "category.checking", network: "category.network", display: "category.display", automation: "category.automation", language: "category.language" };
     const routes = [{ view: "home", scroll: 0 }];
     function navigate(view, trigger) {
@@ -105,6 +106,7 @@
         hoverReveal.checked = settings.hoverReveal;
         for (const [key, field] of Object.entries(fields))
             field.value = String(settings[key]);
+        selects.forEach(sync => sync());
         paintIgnore();
     }
     function paintIgnore() {
@@ -316,6 +318,7 @@
             await refresh();
             for (const element of document.querySelectorAll("input, select, #clear-cache"))
                 element.disabled = false;
+            selects.forEach(sync => sync());
         }
         catch (e) {
             report(e);
